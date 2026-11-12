@@ -27,7 +27,11 @@ tools: ## Install the toolchain pinned in rokit.toml
 packages: ## Install Wally packages (DevPackages/, Packages/)
 	wally install
 
+STUDIO_PLUGINS_DIR := $(HOME)/Documents/Roblox/Plugins
+
 studio-plugin: ## Install the Rojo plugin matching the pinned Rojo version into Studio
+	@# Studio creates its plugins folder on first launch; create it so this also works before that (macOS).
+	@if [ "$(shell uname)" = "Darwin" ]; then mkdir -p "$(STUDIO_PLUGINS_DIR)"; fi
 	rojo plugin install
 
 dev: ## Live-sync the GAME into Studio (Rojo plugin > Connect)
