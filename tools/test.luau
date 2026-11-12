@@ -11,6 +11,7 @@
 	to use in CI, Makefile targets and Claude Code hooks.
 ]]
 
+local fs = require("@lune/fs")
 local process = require("@lune/process")
 local stdio = require("@lune/stdio")
 
@@ -35,6 +36,10 @@ local function color(name: string, text: string): string
 end
 
 local function buildPlace()
+	-- build/ is git-ignored, so it does not exist in a fresh clone or on CI.
+	if not fs.isDir("build") then
+		fs.writeDir("build")
+	end
 	local result = process.exec("rojo", { "build", "test.project.json", "-o", PLACE_PATH })
 	if not result.ok then
 		stdio.ewrite(result.stderr .. result.stdout)
