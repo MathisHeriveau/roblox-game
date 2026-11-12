@@ -30,7 +30,13 @@ git clone <your-repo-url> roblox-game && cd roblox-game
 make install        # rokit install (answer "y" to trust each pinned tool) + wally install + lune setup
 make studio-plugin  # installs the Rojo plugin into Roblox Studio (matching the pinned Rojo)
 make check          # format, lint, strict types, architecture validation, tests — should be green
+code .              # open THIS folder as the VS Code workspace root (see note below)
 ```
+
+> **Open the repository folder itself in VS Code** (`code roblox-game`), not a parent folder.
+> The Selene and luau-lsp extensions read `selene.toml`, `.luaurc` and the Rojo project from the
+> workspace root; from a parent folder, Selene falls back to plain-Lua parsing (false "unexpected
+> token `:`" errors on Luau type casts) and the sourcemap is not generated.
 
 ## First launch
 
@@ -114,6 +120,7 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Workflow:
 | Studio says the Rojo version doesn't match | `make studio-plugin`, then restart Studio |
 | Nothing syncs | Is `make dev` running? Plugins → Rojo → Connect (localhost:34872) |
 | Type errors on `script.Parent.X` in VS Code | `make sourcemap`, then *Developer: Reload Window* |
+| Selene "unexpected token `:`" in VS Code | The workspace root is a parent folder. Open `roblox-game` itself (`code .`) |
 | `TestEZ not found` | `make packages` |
 | DataStore errors in Studio | Expected offline. Studio uses an in-memory store by default (see the `persistence` skill) |
 | Hooks don't run | Check `jq` is installed and run `/hooks` in Claude Code. Scripts must be executable (`chmod +x .claude/hooks/*.sh`) |

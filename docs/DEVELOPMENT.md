@@ -70,6 +70,7 @@ Hooks require `bash` and `jq` (both ship with macOS). Personal overrides go in
 | Rokit asks to trust a tool | answer **y** — tools come from the pinned GitHub repos in `rokit.toml` |
 | Rojo "version mismatch" in Studio | `make studio-plugin` (installs the plugin matching the pinned Rojo) |
 | Red squiggles on `script.Parent.X` | sourcemap stale: save any file or `make sourcemap`; reload VS Code window |
+| Selene "unexpected token `:`" on `::` casts | VS Code is opened on a parent folder; open the repo root (`code .`) so `selene.toml` is found |
 | `TestEZ not found` when testing | `make packages` |
 | DataStore errors in Studio | expected unless published + API access enabled; default uses InMemoryStore |
 | Kicked with "could not load your progress" | see the PlayerDataService log line (Locked / Unavailable / Corrupt) |
