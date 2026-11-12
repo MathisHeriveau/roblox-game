@@ -1,0 +1,12 @@
+# Lints game code (src/) and specs (tests/). Lune tooling (tools/) uses tools/selene.toml.
+std = "roblox+testez"
+exclude = ["DevPackages/**", "Packages/**", "ServerPackages/**", "build/**", "tools/**", ".cache/**"]
+
+[lints]
+# Deprecated APIs (wait, spawn, delay, tick, ...) are errors, not suggestions.
+deprecated = "deny"
+global_usage = "deny"
+incorrect_standard_library_use = "deny"
+shadowing = "allow"
+unused_variable = "warn"
+# Luau-specific/type-aware checks are delegated to luau-lsp analyze (make typecheck).

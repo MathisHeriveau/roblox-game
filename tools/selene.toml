@@ -1,0 +1,6 @@
+# Lune scripts run outside Roblox: plain Luau standard library.
+std = "luau"
+
+[lints]
+global_usage = "deny"
+unused_variable = "warn"

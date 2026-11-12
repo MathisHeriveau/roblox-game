@@ -1,0 +1,89 @@
+# Continuous integration — runs the same gates as `make check` on GitHub's free hosted runners.
+# It never publishes anything to Roblox: publishing stays a deliberate, manual action.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ROKIT_VERSION: "1.2.0"
+
+jobs:
+  check:
+    name: Format · Lint · Types · Validate · Test · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Third-party actions are pinned to full commit SHAs (supply-chain hardening).
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Rokit ${{ env.ROKIT_VERSION }}
+        run: |
+          curl --proto '=https' --tlsv1.2 -fsSL \
+            "https://raw.githubusercontent.com/rojo-rbx/rokit/v${ROKIT_VERSION}/scripts/install.sh" \
+            | bash -s -- "${ROKIT_VERSION}"
+          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+        env:
+          # Authenticated GitHub API calls avoid anonymous rate limits on shared runner IPs.
+          GITHUB_PAT: ${{ github.token }}
+
+      - name: Cache toolchain binaries
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.rokit/tool-storage
+          key: rokit-tools-${{ runner.os }}-${{ hashFiles('rokit.toml') }}
+
+      - name: Install toolchain (rokit.toml)
+        run: |
+          rokit authenticate github --token "$GH_TOKEN" --skip-parse --skip-verify
+          rokit install --no-trust-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Install Wally packages
+        run: wally install
+
+      - name: Cache Roblox type definitions
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/luau-lsp
+          key: luau-lsp-defs-${{ hashFiles('rokit.toml') }}
+
+      - name: Format (StyLua)
+        run: make format-check
+
+      - name: Lint (Selene)
+        run: make lint
+
+      - name: Type check (luau-lsp, strict)
+        run: make typecheck
+
+      - name: Validate project & architecture rules
+        run: make validate
+
+      - name: Tests (Lune + TestEZ)
+        run: make test
+
+      - name: Build place file
+        run: make build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: game-rbxl-${{ github.sha }}
+          path: build/game.rbxl
+          retention-days: 7
+          if-no-files-found: error

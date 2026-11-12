@@ -1,0 +1,15 @@
+{
+  "languageMode": "strict",
+  "globals": [
+    "describe",
+    "it",
+    "expect",
+    "beforeAll",
+    "afterAll",
+    "beforeEach",
+    "afterEach",
+    "FOCUS",
+    "SKIP",
+    "__LUNE_RUNTIME__"
+  ]
+}

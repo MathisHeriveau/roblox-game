@@ -1,0 +1,15 @@
+# Wally manifest — Luau package dependencies.
+# Every dependency must be justified in docs/DECISIONS.md (purpose, version, maintenance status).
+[package]
+name = "dev/roblox-game"
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+private = true
+
+[dependencies]
+# Runtime packages (synced into ReplicatedStorage.Packages). None yet — keep it that way until justified.
+
+[dev-dependencies]
+# Test-only packages (synced into the TEST place only, never into the shipped place).
+TestEZ = "roblox/testez@0.4.1"
