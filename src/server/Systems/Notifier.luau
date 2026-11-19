@@ -3,14 +3,14 @@
 	Notifier — sends toast notifications to clients (Remotes.Notify). Server-only helper.
 
 	Styles understood by the client: "info", "success", "warning", "error", "coins", "pickup",
-	"rarity" (pass `rarity` to colour the toast with that rarity).
+	"rarity" (pass `rarity` to colour the toast with that rarity), "alarm" (base under attack).
 ]]
 
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local ServerNet = require(ServerScriptService.Server.Systems.ServerNet)
 
-export type Style = "info" | "success" | "warning" | "error" | "coins" | "pickup" | "rarity"
+export type Style = "info" | "success" | "warning" | "error" | "coins" | "pickup" | "rarity" | "alarm"
 
 local Notifier = {}
 

@@ -104,6 +104,20 @@ local GameConfig = {
 		KnockbackForce = 70,
 	}),
 
+	Raid = table.freeze({
+		-- A base lock (shield) lasts this long; the owner re-locks at the console in their base.
+		LockSeconds = 60,
+		-- New arrivals get a free lock so nobody is raided while loading in.
+		JoinGraceSeconds = 90,
+		-- Seconds to hold the Steal prompt (gives the owner a chance to react).
+		StealHoldSeconds = 1.2,
+		StealMaxDistance = 12,
+		-- Carrying a stolen Starling is heavy: the thief can be chased down.
+		CarrySpeedFactor = 0.62,
+		-- Players with fewer Starlings cannot be raided (protects beginners).
+		MinVictimStarlings = 2,
+	}),
+
 	Hazards = table.freeze({
 		LavaDamagePerSecond = 25,
 	}),

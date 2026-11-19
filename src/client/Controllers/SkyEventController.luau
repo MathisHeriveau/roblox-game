@@ -93,6 +93,9 @@ local function onWorldEvent(payload: unknown)
 			Vfx.cameraShake(1.4, 0.9)
 		end
 		clearComet()
+	elseif event.kind == "raid" and typeof(event.position) == "Vector3" then
+		Vfx.shockwave(event.position, rarityColor(event.rarity), 18)
+		Sfx.playAt(Sfx.IMPACT, event.position, 0.5)
 	elseif event.kind == "bump" and typeof(event.position) == "Vector3" then
 		Vfx.shockwave(event.position, Theme.Color.Gold, 10)
 		Sfx.playAt(Sfx.BUMP, event.position, 0.7)

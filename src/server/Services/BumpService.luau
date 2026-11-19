@@ -18,6 +18,7 @@ local Server = ServerScriptService.Server
 local BaseService = require(Server.Services.BaseService)
 local Notifier = require(Server.Systems.Notifier)
 local PlayerDataService = require(Server.Services.PlayerDataService)
+local RaidService = require(Server.Services.RaidService)
 local ServerConfig = require(Server.ServerConfig)
 local ServerNet = require(Server.Systems.ServerNet)
 local ShardRules = require(Server.Systems.Shards.ShardRules)
@@ -62,7 +63,8 @@ local function onBump(attacker: Player)
 				userId = other.UserId,
 				position = root.Position,
 				alive = alive,
-				carrying = ShardService.getCarryCount(other),
+				-- A thief carrying a stolen Starling counts as a carrier.
+				carrying = ShardService.getCarryCount(other) + (if RaidService.isCarrying(other) then 1 else 0),
 				immuneUntil = immuneUntil[other.UserId] or 0,
 				inSafeZone = BaseService.isInAnyPlot(root.Position),
 			})
@@ -83,15 +85,24 @@ local function onBump(attacker: Player)
 
 	local flat = (targetRoot.Position - attackerRoot.Position) * Vector3.new(1, 0, 1)
 	local direction = if flat.Magnitude > 0.05 then flat.Unit else attackerRoot.CFrame.LookVector
-	ShardService.dropTop(target, targetRoot.Position + direction * 3, target.UserId)
+	local stoppedThief = RaidService.isCarrying(target)
+	if stoppedThief then
+		RaidService.recover(target, attacker)
+	else
+		ShardService.dropTop(target, targetRoot.Position + direction * 3, target.UserId)
+	end
 
 	ServerNet.fireClient("Knockback", target, direction)
 	ServerNet.fireAllClients("WorldEvent", { kind = "bump", position = targetRoot.Position })
 	PlayerDataService.update(attacker, function(draft)
 		draft.stats.bumpsLanded += 1
 	end)
-	Notifier.send(attacker, `💥 You bumped {target.DisplayName}!`, "success")
-	Notifier.send(target, `💥 {attacker.DisplayName} bumped you: shard dropped!`, "warning")
+	if stoppedThief then
+		Notifier.send(attacker, `🛡️ You stopped {target.DisplayName}'s raid!`, "success")
+	else
+		Notifier.send(attacker, `💥 You bumped {target.DisplayName}!`, "success")
+		Notifier.send(target, `💥 {attacker.DisplayName} bumped you: shard dropped!`, "warning")
+	end
 end
 
 function BumpService.init(_self: any)

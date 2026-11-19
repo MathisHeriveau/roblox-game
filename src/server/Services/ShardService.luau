@@ -69,6 +69,8 @@ local shards: { [number]: ShardState } = {}
 local activeCount = 0
 local carried: { [Player]: { ShardState } } = {}
 local occupiedTiles: { [MapLayout.Tile]: boolean } = {}
+-- Players who cannot pick up shards right now (e.g. carrying a stolen Starling).
+local pickupBlocked: { [Player]: true } = {}
 local lastPositions: { [Player]: Vector3 } = {}
 local nextId = 0
 local container: Folder
@@ -253,7 +255,7 @@ local function tick()
 			local capacity = Economy.capacity(data.upgrades.carry)
 			local radius = Economy.magnetRadius(data.upgrades.magnet)
 
-			if alive and #list < capacity then
+			if alive and not pickupBlocked[player] and #list < capacity then
 				for _, shard in shards do
 					if shard.holder == nil then
 						local ok = ShardRules.canPickup({
@@ -324,6 +326,7 @@ function ShardService.start(_self: any)
 		dropAll(player, nil)
 		carried[player] = nil
 		lastPositions[player] = nil
+		pickupBlocked[player] = nil
 	end)
 
 	-- Losing backpack levels (rebirth) drops what no longer fits.
@@ -408,6 +411,14 @@ function ShardService.spawnAt(
 	end
 	parts.model.Parent = container
 	return id
+end
+
+function ShardService.setPickupBlocked(player: Player, blocked: boolean)
+	if blocked then
+		pickupBlocked[player] = true
+	else
+		pickupBlocked[player] = nil
+	end
 end
 
 function ShardService.getCarryCount(player: Player): number

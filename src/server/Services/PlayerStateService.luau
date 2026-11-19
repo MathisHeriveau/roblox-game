@@ -19,6 +19,7 @@ local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 local Server = ServerScriptService.Server
 local PlayerDataSchema = require(Server.Systems.Persistence.PlayerDataSchema)
 local PlayerDataService = require(Server.Services.PlayerDataService)
+local RaidService = require(Server.Services.RaidService)
 local ServerConfig = require(Server.ServerConfig)
 local ServerNet = require(Server.Systems.ServerNet)
 local ShardService = require(Server.Services.ShardService)
@@ -31,7 +32,11 @@ local PlayerStateService = {
 
 local dirty: { [Player]: boolean } = {}
 
-function PlayerStateService.toState(data: PlayerDataSchema.PlayerData, carrying: number): PlayerState
+function PlayerStateService.toState(
+	data: PlayerDataSchema.PlayerData,
+	carrying: number,
+	carryingStarling: number
+): PlayerState
 	local level, progress, goal = Economy.levelFromXp(data.xp)
 	return {
 		coins = data.coins,
@@ -53,6 +58,7 @@ function PlayerStateService.toState(data: PlayerDataSchema.PlayerData, carrying:
 		},
 		carrying = carrying,
 		capacity = Economy.capacity(data.upgrades.carry),
+		carryingStarling = carryingStarling,
 		starlings = #data.starlings,
 		slots = Economy.slots(data.upgrades.slots),
 		shardsDelivered = data.stats.shardsDelivered,
@@ -63,7 +69,9 @@ end
 
 local function snapshot(player: Player): PlayerState?
 	local data = PlayerDataService.peek(player)
-	return if data then PlayerStateService.toState(data, ShardService.getCarryCount(player)) else nil
+	return if data
+		then PlayerStateService.toState(data, ShardService.getCarryCount(player), RaidService.carriedRarity(player))
+		else nil
 end
 
 local function markDirty(player: Player)
@@ -84,6 +92,7 @@ function PlayerStateService.start(_self: any)
 	PlayerDataService.loaded:connect(markDirty)
 	PlayerDataService.changed:connect(markDirty)
 	ShardService.carryChanged:connect(markDirty)
+	RaidService.changed:connect(markDirty)
 	Players.PlayerRemoving:Connect(function(player)
 		dirty[player] = nil
 	end)

@@ -9,7 +9,8 @@ local Theme = require(script.Parent.Parent.Theme)
 
 export type CarryIndicator = {
 	root: Frame,
-	setCarry: (carrying: number, capacity: number) -> (),
+	-- `stolenRarity` > 0 while carrying a stolen Starling.
+	setCarry: (carrying: number, capacity: number, stolenRarity: number?) -> (),
 }
 
 local CarryIndicator = {}
@@ -58,7 +59,13 @@ function CarryIndicator.new(): CarryIndicator
 
 	return {
 		root = root,
-		setCarry = function(carrying: number, capacity: number)
+		setCarry = function(carrying: number, capacity: number, stolenRarity: number?)
+			if stolenRarity and stolenRarity > 0 then
+				count.Text = "⭐ STOLEN!"
+				border.Color = Theme.Color.Red
+				hint.Text = "Run to YOUR base! A bump sends it back"
+				return
+			end
 			count.Text = `✦ {carrying} / {capacity}`
 			local full = carrying >= capacity and capacity > 0
 			border.Color = if full then Theme.Color.Gold else Theme.Color.Outline

@@ -48,6 +48,20 @@ return function()
 			end
 		end)
 
+		it("adds raid elements: one disabled Steal prompt per pedestal, a lock console, a shield dome", function()
+			expect(#refs.stealPrompts).to.equal(#refs.pedestals)
+			for _, prompt in refs.stealPrompts do
+				expect(prompt.Enabled).to.equal(false)
+				expect(prompt.HoldDuration > 0).to.equal(true)
+			end
+			expect(refs.lockPrompt.Name).to.equal("LockPrompt")
+			expect(refs.dome.Transparency).to.equal(1)
+			BaseBuilder.setShield(refs, true)
+			expect(refs.dome.Transparency < 1).to.equal(true)
+			BaseBuilder.setShield(refs, false)
+			expect(refs.dome.Transparency).to.equal(1)
+		end)
+
 		it("dims locked pedestals", function()
 			BaseBuilder.setUnlockedSlots(refs, 4)
 			expect(refs.pedestals[4].Transparency).to.equal(0)

@@ -19,6 +19,7 @@ local function valid(): { [string]: any }
 		upgrades = { speed = 0, carry = 0, magnet = 0, slots = 0 },
 		carrying = 0,
 		capacity = 1,
+		carryingStarling = 0,
 		starlings = 0,
 		slots = 4,
 		shardsDelivered = 0,

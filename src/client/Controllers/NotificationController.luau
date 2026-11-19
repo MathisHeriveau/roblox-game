@@ -5,6 +5,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local ClientNet = require(ReplicatedStorage.Shared.Net.ClientNet)
@@ -25,7 +26,11 @@ local STYLE_COLORS: { [string]: Color3 } = {
 	coins = Theme.Color.Gold,
 	pickup = Theme.Color.Gold,
 	rarity = Theme.Color.Purple,
+	alarm = Theme.Color.Red,
 }
+
+-- Full-screen red pulse for "your base is being raided".
+local flash: Frame
 
 local NotificationController = {
 	name = "NotificationController",
@@ -61,6 +66,10 @@ function NotificationController.show(text: string, style: string, rarity: number
 
 	if style == "pickup" or style == "coins" or style == "rarity" then
 		Sfx.play(Sfx.PICKUP, 0.35)
+	elseif style == "alarm" then
+		Sfx.play(Sfx.HURT, 0.8)
+		flash.BackgroundTransparency = 0.55
+		TweenService:Create(flash, TweenInfo.new(0.9), { BackgroundTransparency = 1 }):Play()
 	end
 	task.delay(LIFETIME_SECONDS, function()
 		toast:Destroy()
@@ -83,13 +92,22 @@ function NotificationController.init(_self: any)
 			Padding = UDim.new(0, 6),
 		}),
 	}) :: Frame
+	flash = Create("Frame", {
+		Name = "AlarmFlash",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Theme.Color.Red,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ZIndex = 0,
+	}) :: Frame
 	gui = Create("ScreenGui", {
 		Name = "Notifications",
 		ResetOnSpawn = false,
 		DisplayOrder = 20,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets,
-	}, { scale :: Instance, holder }) :: ScreenGui
+		-- Full screen so the alarm flash covers everything (toasts sit well below the top bar).
+		ScreenInsets = Enum.ScreenInsets.None,
+	}, { scale :: Instance, flash, holder }) :: ScreenGui
 end
 
 function NotificationController.start(_self: any)

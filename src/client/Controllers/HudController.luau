@@ -43,7 +43,7 @@ local function render(state: PlayerState)
 	coinPill.setCoins(state.coins)
 	coinPill.setIncome(state.incomePerSecond, state.vault)
 	levelBadge.setLevel(state.level, state.levelProgress, state.levelGoal)
-	carry.setCarry(state.carrying, state.capacity)
+	carry.setCarry(state.carrying, state.capacity, state.carryingStarling)
 end
 
 local function showZone(tier: number)

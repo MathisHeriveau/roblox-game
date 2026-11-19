@@ -18,10 +18,20 @@ local CharacterService = {
 	name = "CharacterService",
 }
 
+-- Extra multiplicative speed factors set by other services (e.g. carrying a stolen Starling).
+local modifiers: { [Player]: { [string]: number } } = {}
+
 function CharacterService.targetSpeed(player: Player): number
 	local data = PlayerDataService.peek(player)
 	local base = if data then Economy.walkSpeed(data.upgrades.speed) else GameConfig.Economy.BaseWalkSpeed
-	return base * Economy.carrySpeedFactor(ShardService.getCarryCount(player))
+	local speed = base * Economy.carrySpeedFactor(ShardService.getCarryCount(player))
+	local factors = modifiers[player]
+	if factors then
+		for _, factor in factors do
+			speed *= factor
+		end
+	end
+	return speed
 end
 
 local function apply(player: Player)
@@ -46,6 +56,14 @@ local function onPlayerAdded(player: Player)
 	end
 end
 
+-- Sets (or clears with nil) a named speed factor and re-applies the walk speed.
+function CharacterService.setModifier(player: Player, key: string, factor: number?)
+	local set = modifiers[player] or {}
+	set[key] = factor
+	modifiers[player] = set
+	apply(player)
+end
+
 function CharacterService.init(_self: any)
 	-- Event-driven: everything is wired in start().
 end
@@ -55,6 +73,9 @@ function CharacterService.start(_self: any)
 	for _, player in Players:GetPlayers() do
 		onPlayerAdded(player)
 	end
+	Players.PlayerRemoving:Connect(function(player)
+		modifiers[player] = nil
+	end)
 	PlayerDataService.loaded:connect(function(player)
 		apply(player)
 	end)

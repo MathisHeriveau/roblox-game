@@ -26,6 +26,8 @@ export type PlayerState = {
 	},
 	carrying: number,
 	capacity: number,
+	-- Rarity id of the Starling this player is stealing right now, 0 if none.
+	carryingStarling: number,
 	starlings: number,
 	slots: number,
 	shardsDelivered: number,
