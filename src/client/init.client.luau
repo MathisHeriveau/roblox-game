@@ -16,5 +16,6 @@ Lifecycle.boot({
 	require(Controllers.HudController),
 	require(Controllers.SkyEventController),
 	require(Controllers.InputController),
+	require(Controllers.JumpPadController),
 	require(Controllers.AmbientController),
 })

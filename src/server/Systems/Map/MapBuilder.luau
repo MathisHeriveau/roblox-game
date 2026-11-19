@@ -10,6 +10,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MapLayout = require(script.Parent.MapLayout)
+local ShardVisuals = require(ReplicatedStorage.Shared.Game.ShardVisuals)
 local Zones = require(ReplicatedStorage.Shared.Config.Zones)
 
 export type TerrainWriter = {
@@ -229,13 +230,159 @@ local function buildFloatingIsland(prop: MapLayout.Prop, parent: Instance)
 	model.Parent = parent
 end
 
+local SANDSTONE = Color3.fromRGB(222, 170, 110)
+local SANDSTONE_DARK = Color3.fromRGB(190, 138, 86)
+
+local function buildArch(prop: MapLayout.Prop, parent: Instance)
+	local s = prop.scale
+	local base = baseCFrame(prop)
+	local model = Instance.new("Model")
+	model.Name = "DesertArch"
+	for _, side in { -1, 1 } do
+		part({
+			Name = "Pillar",
+			Size = Vector3.new(4 * s, 16 * s, 4 * s),
+			CFrame = base * CFrame.new(side * 7 * s, 8 * s - 1, 0) * CFrame.Angles(0, 0, math.rad(side * -3)),
+			Material = Enum.Material.Sandstone,
+			Color = SANDSTONE_DARK,
+		}, model)
+	end
+	part({
+		Name = "Lintel",
+		Size = Vector3.new(19 * s, 3.5 * s, 5 * s),
+		CFrame = base * CFrame.new(0, 17 * s, 0),
+		Material = Enum.Material.Sandstone,
+		Color = SANDSTONE,
+	}, model)
+	part({
+		Name = "Crystal",
+		Size = Vector3.new(2 * s, 4 * s, 2 * s),
+		CFrame = base * CFrame.new(0, 21 * s, 0) * CFrame.Angles(0, math.rad(45), math.rad(20)),
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(190, 120, 255),
+		CastShadow = false,
+	}, model)
+	model.Parent = parent
+end
+
+local function buildVolcano(prop: MapLayout.Prop, parent: Instance)
+	local s = prop.scale
+	local base = baseCFrame(prop)
+	local model = Instance.new("Model")
+	model.Name = "Volcano"
+	local rock = Color3.fromRGB(96, 58, 54)
+	local tiers = { { 40, 10 }, { 28, 10 }, { 18, 9 } }
+	local y = -1
+	for index, tier in tiers do
+		part({
+			Name = `Cone{index}`,
+			Size = Vector3.new(tier[1] * s, tier[2] * s, tier[1] * s),
+			CFrame = base * CFrame.new(0, y + tier[2] * s / 2, 0) * CFrame.Angles(0, math.rad(index * 17), 0),
+			Material = Enum.Material.Basalt,
+			Color = rock,
+		}, model)
+		y += tier[2] * s
+	end
+	local crater = part({
+		Name = "Crater",
+		Size = Vector3.new(12 * s, 1.5 * s, 12 * s),
+		CFrame = base * CFrame.new(0, y, 0),
+		Material = Enum.Material.Neon,
+		Color = Color3.fromRGB(255, 96, 24),
+		CastShadow = false,
+	}, model)
+	local fire = Instance.new("Fire")
+	fire.Size = 18 * s
+	fire.Heat = 25
+	fire.Color = Color3.fromRGB(255, 120, 30)
+	fire.SecondaryColor = Color3.fromRGB(255, 60, 120)
+	fire.Parent = crater
+	local smoke = Instance.new("Smoke")
+	smoke.Size = 20 * s
+	smoke.RiseVelocity = 12
+	smoke.Opacity = 0.18
+	smoke.Color = Color3.fromRGB(80, 60, 90)
+	smoke.Parent = crater
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(255, 110, 40)
+	light.Range = 50
+	light.Brightness = 3
+	light.Parent = crater
+	model.Parent = parent
+end
+
 local PROP_BUILDERS: { [MapLayout.PropKind]: (MapLayout.Prop, Instance) -> () } = {
 	tree = buildTree,
 	crystal = buildCrystal,
 	rock = buildRock,
 	pillar = buildPillar,
+	arch = buildArch,
+	volcano = buildVolcano,
 	floatingIsland = buildFloatingIsland,
 }
+
+local PAD_COLORS = {
+	up = Color3.fromRGB(190, 120, 255),
+	down = Color3.fromRGB(80, 220, 255),
+}
+
+-- Jump pads launch players client-side (characters are owned by their client); the launch
+-- velocity is precomputed by MapLayout so the flight lands exactly on the target.
+local function buildJumpPad(pad: MapLayout.JumpPad, parent: Instance): Part
+	local position = Vector3.new(pad.position.x, pad.position.y, pad.position.z)
+	local color = PAD_COLORS[pad.kind]
+	local plate = part({
+		Name = if pad.kind == "up" then `JumpPad{pad.island}` else `ReturnPad{pad.island}`,
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(1, 9, 9),
+		CFrame = CFrame.new(position + Vector3.new(0, 0.5, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		Material = Enum.Material.Neon,
+		Color = color,
+		CastShadow = false,
+	}, parent)
+	plate:SetAttribute("LaunchVelocity", Vector3.new(pad.velocity.x, pad.velocity.y, pad.velocity.z))
+	plate:SetAttribute("Island", pad.island)
+	plate:SetAttribute("Kind", pad.kind)
+	plate:AddTag(ShardVisuals.JUMP_PAD_TAG)
+
+	local particles = Instance.new("ParticleEmitter")
+	particles.Rate = 12
+	particles.Lifetime = NumberRange.new(0.6, 1)
+	particles.Speed = NumberRange.new(14, 22)
+	particles.EmissionDirection = Enum.NormalId.Right -- the cylinder's X axis points up
+	particles.SpreadAngle = Vector2.new(12, 12)
+	particles.LightEmission = 1
+	particles.Size = NumberSequence.new(0.5, 0)
+	particles.Color = ColorSequence.new(color)
+	particles.Parent = plate
+
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = 14
+	light.Brightness = 2
+	light.Parent = plate
+
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "Label"
+	gui.Size = UDim2.fromScale(10, 2)
+	gui.StudsOffset = Vector3.new(0, 5, 0)
+	gui.LightInfluence = 0
+	gui.MaxDistance = 120
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.LuckiestGuy
+	label.TextScaled = true
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.Text = if pad.kind == "up" then "⤴ SKY ISLAND" else "⤵ BACK TO LAND"
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 2
+	stroke.Color = Color3.fromRGB(28, 16, 70)
+	stroke.Parent = label
+	label.Parent = gui
+	gui.Parent = plate
+	return plate
+end
 
 --------------------------------------------------------------------------------------------------
 -- Landmarks
@@ -331,6 +478,10 @@ function MapBuilder.build(layout: MapLayout.Layout, parent: Instance, writer: Te
 
 	local landmarks = folder("Landmarks", root)
 	buildMonument(landmarks)
+	local pads = folder("JumpPads", root)
+	for _, pad in layout.jumpPads do
+		buildJumpPad(pad, pads)
+	end
 	buildBounds(layout, folder("Bounds", root))
 
 	local spawnLocation = Instance.new("SpawnLocation")

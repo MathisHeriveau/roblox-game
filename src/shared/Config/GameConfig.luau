@@ -21,7 +21,15 @@ local GameConfig = {
 		TreeChance = 0.1,
 		CrystalChance = 0.14,
 		RockChance = 0.1,
-		PillarChance = 0.08,
+		PillarChance = 0.12,
+		-- Landmarks.
+		Arches = 4,
+		Volcanoes = 2,
+		-- Separate floating islands of the outer zone, each served by a jump pad and a return pad.
+		SkyIslands = 7,
+		-- Studs/s² — must match Workspace.Gravity for jump pads to land where planned.
+		Gravity = 196.2,
+		-- Decorative islands floating beyond the playable world.
 		FloatingIslands = 12,
 	}),
 

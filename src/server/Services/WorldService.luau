@@ -81,6 +81,8 @@ function WorldService.init(_self: any)
 	grading.TintColor = Color3.fromRGB(255, 246, 255)
 
 	Workspace.FallenPartsDestroyHeight = world.FallenPartsDestroyHeight
+	-- Jump pad trajectories are computed for this gravity (GameConfig.Map.Gravity).
+	Workspace.Gravity = GameConfig.Map.Gravity
 end
 
 function WorldService.start(_self: any)

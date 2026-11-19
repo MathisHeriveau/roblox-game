@@ -89,6 +89,12 @@ return function()
 			end
 			expect(#(result.root:FindFirstChild("Props") :: Folder):GetChildren()).to.equal(#layout.props)
 			expect(#(result.root:FindFirstChild("Bounds") :: Folder):GetChildren()).to.equal(4)
+			local pads = result.root:FindFirstChild("JumpPads") :: Folder
+			expect(#pads:GetChildren()).to.equal(#layout.jumpPads)
+			for _, pad in pads:GetChildren() do
+				expect(pad:HasTag("JumpPad")).to.equal(true)
+				expect(typeof(pad:GetAttribute("LaunchVelocity"))).to.equal("Vector3")
+			end
 			expect(result.spawnLocation.Neutral).to.equal(true)
 			expect(result.root:GetAttribute("Seed")).to.equal(layout.seed)
 		end)

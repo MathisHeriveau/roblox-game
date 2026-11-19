@@ -8,6 +8,7 @@ local ShardVisuals = {
 	SHARD_TAG = "Shard",
 	CRYSTAL_TAG = "ShardCrystal",
 	STARLING_TAG = "Starling",
+	JUMP_PAD_TAG = "JumpPad",
 	-- Orientation that balances a cube on one vertex (a gem silhouette).
 	TILT = CFrame.Angles(math.rad(45), 0, math.rad(35.264)),
 }
