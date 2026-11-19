@@ -6,10 +6,21 @@ When a rule here conflicts with a habit, the rule wins. Deeper context: `docs/AR
 
 ## What this project is
 
-A code-first Roblox (Luau) game foundation. **All source lives in this repo**; Roblox Studio is
-only the runtime/visualiser, synced with Rojo. Maps, UI and systems are generated from code.
-The current content is a technical demo (procedural map, collectibles, coins HUD, persistence),
-not the final game.
+**Comet Raiders**, a code-first Roblox (Luau) game: meteor showers drop star shards on a
+procedurally generated floating island; players carry them home to hatch income-producing
+Starlings, raid each other's bases and defend their own. Design: `docs/GAME_DESIGN.md`. Art and
+colours: `assets/concept/`. **All source lives in this repo**; Roblox Studio is only the
+runtime/visualiser, synced with Rojo. Maps, UI and systems are generated from code.
+
+## Look at what you build (mandatory)
+
+Never design blind:
+- Any change to map generation: run `make preview` and **open** `build/preview/island-top.png`
+  and `island-iso.png` (Read tool) before and after. Check zones, landmarks, pads and bases.
+- In-engine: with Roblox Studio open and its MCP server enabled (Assistant > Manage MCP Servers),
+  this project's `.mcp.json` gives you `screen_capture`, `execute_luau`, `start_stop_play`,
+  `get_console_output` and input simulation. Playtest, capture the viewport, read the console.
+  A feature is not done until you have seen it work or listed exactly what remains unverified.
 
 ## Commands (run from the repo root)
 
@@ -20,6 +31,7 @@ not the final game.
 | `make format` · `make lint` · `make typecheck` · `make validate` | Individual gates |
 | `make dev` / `make dev-test` | Rojo live sync of the game / test place into Studio |
 | `make build` · `make studio` · `make studio-test` | Build place files (and open them in Studio) |
+| `make preview` | Render the generated world to `build/preview/*.png` + stats (look at it!) |
 
 Tools are pinned in `rokit.toml` (Rojo, StyLua, Selene, Wally, Lune, luau-lsp). Never install
 global alternatives or change versions without an ADR in `docs/DECISIONS.md`.

@@ -1,13 +1,14 @@
 # roblox-game
 
-A code-first, test-driven foundation for Roblox games, with an AI engineering harness for
+**Comet Raiders**: a code-first, test-driven Roblox game, with an AI engineering harness for
 Claude Code. All source lives here; Roblox Studio only runs and visualises it, synced by Rojo.
 
-The demo shows the full pipeline end to end:
-- a procedurally generated, seeded terrain map with a spawn plateau and boundary walls
-- collectibles detected and rewarded by the server
-- a coin HUD generated in code
-- session-locked, versioned persistence
+Meteor showers drop star shards on a procedurally generated floating island. Players carry
+them home to hatch income-producing Starlings, raid each other's open bases, and lock their own
+shields. Design: [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md). Concept art: `assets/concept/`.
+
+`make preview` renders the generated world to `build/preview/island-top.png` and
+`island-iso.png`, so you can see map changes without opening Studio.
 
 ## Prerequisites
 
@@ -54,7 +55,7 @@ Without live sync: `make studio` builds `build/game.rbxl` and opens it directly.
 ## Testing
 
 ```bash
-make test                                 # 84 headless specs (Lune + TestEZ), < 1 s
+make test                                 # 156 headless specs (Lune + TestEZ), ~1 s
 lune run tools/test.luau -- "SessionStore"  # filter by name
 make studio-test                          # open the test place in Studio, press Play
 ```

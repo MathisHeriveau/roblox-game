@@ -51,7 +51,7 @@ place with API access (see the `persistence` skill) — a manual step.
 
 ## Current suite
 
-13 spec files, 84 headless tests + 3 Studio-only:
+156 headless tests + 4 Studio-only (see `tests/`). Highlights:
 
 - unit: Prng, Guard, RateLimiter, Signal, Cleaner, Lifecycle, MapLayout, PlayerDataSchema,
   CollectibleRules, CoinCounter

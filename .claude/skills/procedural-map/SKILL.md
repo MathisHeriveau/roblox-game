@@ -51,6 +51,14 @@ The project generates every environment in code. Reference implementation:
 - Terrain voxels (`Workspace.Terrain:FillBlock/FillRegion`) are an option for organic ground;
   keep the layout pure and do terrain writes in the builder.
 
+## See it (mandatory)
+
+Run `make preview` and open `build/preview/island-top.png` and `island-iso.png` with the Read
+tool. They are rendered from the real MapLayout/BaseLayout/SkySchedule modules. Compare before
+and after every change. Look for monotony (perfect circles), unreachable areas, empty zones,
+overlaps with bases or pads, and landmark spacing. Then verify in Studio with the MCP
+`screen_capture` tool when it is available.
+
 ## Debugging
 
 - Log seed + counts + build time (MapService does this).
