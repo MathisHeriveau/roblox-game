@@ -9,29 +9,74 @@
 	  - Data written by a NEWER schema is never loaded (it would be silently downgraded and lose
 	    fields during a rolling update). The session is refused instead.
 	  - Everything loaded is validated; invalid data is reported, never "repaired" by overwriting.
+
+	History: v1 coins only · v2 + stats · v3 Comet Raiders progression (vault, xp, rebirths, zones,
+	upgrades, Starlings, lastSeen, more stats).
 ]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
+local Upgrades = require(ReplicatedStorage.Shared.Config.Upgrades)
+local Zones = require(ReplicatedStorage.Shared.Config.Zones)
+
+export type Starling = {
+	rarity: number,
+	shiny: boolean,
+}
 
 export type PlayerData = {
 	coins: number,
+	-- Income waiting at the base, banked by stepping on the collect pad.
+	vault: number,
+	xp: number,
+	rebirths: number,
+	-- Highest unlocked zone tier (1..Zones.COUNT).
+	zoneTier: number,
+	upgrades: {
+		speed: number,
+		carry: number,
+		magnet: number,
+		slots: number,
+	},
+	starlings: { Starling },
+	-- os.time() of the last save, for offline earnings. 0 = never saved.
+	lastSeen: number,
 	stats: {
 		collectiblesCollected: number,
 		sessions: number,
+		shardsDelivered: number,
+		bumpsLanded: number,
+		cometsCaught: number,
 	},
 }
 
 -- Largest integer a double represents exactly; keeps currency arithmetic lossless.
 local MAX_SAFE_INTEGER = 2 ^ 53 - 1
+-- Hard cap on stored Starlings (base slots + every pedestal upgrade).
+local MAX_STARLINGS = 4 + (Upgrades.get("slots") :: Upgrades.Upgrade).maxLevel
 
 local PlayerDataSchema = {}
 
-PlayerDataSchema.VERSION = 2
+PlayerDataSchema.VERSION = 3
+PlayerDataSchema.MAX_STARLINGS = MAX_STARLINGS
 
 function PlayerDataSchema.defaults(): PlayerData
 	return {
 		coins = 0,
+		vault = 0,
+		xp = 0,
+		rebirths = 0,
+		zoneTier = 1,
+		upgrades = { speed = 0, carry = 0, magnet = 0, slots = 0 },
+		starlings = {},
+		lastSeen = 0,
 		stats = {
 			collectiblesCollected = 0,
 			sessions = 0,
+			shardsDelivered = 0,
+			bumpsLanded = 0,
+			cometsCaught = 0,
 		},
 	}
 end
@@ -49,17 +94,29 @@ end
 PlayerDataSchema.deepCopy = deepCopy
 
 --[[
-	MIGRATIONS[n] upgrades data from version n to n + 1.
-
-	v1 -> v2 is the reference example of the pattern: v1 stored only `coins`; v2 introduced
-	`stats`. It stays forever so a v1 record (if one existed) still loads correctly.
+	MIGRATIONS[n] upgrades data from version n to n + 1. Append-only: never edit a shipped one.
 ]]
 local MIGRATIONS: { [number]: (data: any) -> any } = {
+	-- v1 -> v2: v1 stored only `coins`; v2 introduced `stats`.
 	[1] = function(data: any): any
 		data.stats = {
 			collectiblesCollected = 0,
 			sessions = 0,
 		}
+		return data
+	end,
+	-- v2 -> v3: Comet Raiders progression. Existing coins and stats are kept.
+	[2] = function(data: any): any
+		data.vault = 0
+		data.xp = 0
+		data.rebirths = 0
+		data.zoneTier = 1
+		data.upgrades = { speed = 0, carry = 0, magnet = 0, slots = 0 }
+		data.starlings = {}
+		data.lastSeen = 0
+		data.stats.shardsDelivered = 0
+		data.stats.bumpsLanded = 0
+		data.stats.cometsCaught = 0
 		return data
 	end,
 }
@@ -72,22 +129,77 @@ local function isCount(value: unknown): boolean
 		and math.floor(value) == value
 end
 
+local function isIntegerInRange(value: unknown, min: number, max: number): boolean
+	return isCount(value) and (value :: number) >= min and (value :: number) <= max
+end
+
+local function validateStarlings(starlings: unknown): (boolean, string?)
+	if type(starlings) ~= "table" then
+		return false, "starlings must be a table"
+	end
+	local list = starlings :: { [any]: any }
+	local count = 0
+	for key in list do
+		count += 1
+		if type(key) ~= "number" or math.floor(key) ~= key or key < 1 then
+			return false, "starlings must be an array"
+		end
+	end
+	if count ~= #list then
+		return false, "starlings must be a contiguous array"
+	end
+	if count > MAX_STARLINGS then
+		return false, `at most {MAX_STARLINGS} starlings`
+	end
+	for index, starling in list do
+		if type(starling) ~= "table" then
+			return false, `starlings[{index}] must be a table`
+		end
+		if not Rarities.isValid(starling.rarity) then
+			return false, `starlings[{index}].rarity is invalid`
+		end
+		if type(starling.shiny) ~= "boolean" then
+			return false, `starlings[{index}].shiny must be a boolean`
+		end
+	end
+	return true, nil
+end
+
 function PlayerDataSchema.validate(data: unknown): (boolean, string?)
 	if type(data) ~= "table" then
 		return false, "data is not a table"
 	end
 	local record = data :: any
-	if not isCount(record.coins) then
-		return false, "coins must be a non-negative safe integer"
+	for _, field in { "coins", "vault", "xp", "rebirths", "lastSeen" } do
+		if not isCount(record[field]) then
+			return false, `{field} must be a non-negative safe integer`
+		end
 	end
+	if not isIntegerInRange(record.zoneTier, 1, Zones.COUNT) then
+		return false, `zoneTier must be an integer within [1, {Zones.COUNT}]`
+	end
+
+	if type(record.upgrades) ~= "table" then
+		return false, "upgrades must be a table"
+	end
+	for _, upgrade in Upgrades.list do
+		if not isIntegerInRange(record.upgrades[upgrade.id], 0, upgrade.maxLevel) then
+			return false, `upgrades.{upgrade.id} must be an integer within [0, {upgrade.maxLevel}]`
+		end
+	end
+
+	local starlingsOk, starlingsErr = validateStarlings(record.starlings)
+	if not starlingsOk then
+		return false, starlingsErr
+	end
+
 	if type(record.stats) ~= "table" then
 		return false, "stats must be a table"
 	end
-	if not isCount(record.stats.collectiblesCollected) then
-		return false, "stats.collectiblesCollected must be a non-negative safe integer"
-	end
-	if not isCount(record.stats.sessions) then
-		return false, "stats.sessions must be a non-negative safe integer"
+	for _, field in { "collectiblesCollected", "sessions", "shardsDelivered", "bumpsLanded", "cometsCaught" } do
+		if not isCount(record.stats[field]) then
+			return false, `stats.{field} must be a non-negative safe integer`
+		end
 	end
 	return true, nil
 end

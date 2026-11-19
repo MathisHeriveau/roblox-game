@@ -66,7 +66,10 @@ function ServerNet.setup()
 end
 
 local function getRemote(name: string, expectedDirection: Remotes.Direction): Instance
-	assert(folder ~= nil, "ServerNet.setup() must be called before using remotes")
+	-- Lazily create every remote on first use, so boot order between services does not matter.
+	if folder == nil then
+		ServerNet.setup()
+	end
 	local definition = Remotes.Definitions[name]
 	assert(definition ~= nil, `ServerNet: unknown remote "{name}"`)
 	assert(

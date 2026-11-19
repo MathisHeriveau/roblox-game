@@ -15,6 +15,15 @@ function PlayerRecords.legacyV1(): any
 	}
 end
 
+-- A record written by schema v2 (before Comet Raiders progression existed).
+function PlayerRecords.legacyV2(): any
+	return {
+		schemaVersion = 2,
+		data = { coins = 1234, stats = { collectiblesCollected = 56, sessions = 7 } },
+		updatedAt = 1700000000,
+	}
+end
+
 -- A record written by a newer server (rolling update) — must never be loaded or overwritten.
 function PlayerRecords.futureVersion(): any
 	return {

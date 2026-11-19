@@ -28,8 +28,19 @@ local ServerConfig = {
 	}),
 
 	Network = table.freeze({
-		-- Token bucket applied per player to GetPlayerState.
+		-- Token buckets applied per player and per channel.
 		GetPlayerStateRateLimit = table.freeze({ capacity = 5, refillPerSecond = 1 } :: RateLimiter.Options),
+		RequestPurchaseRateLimit = table.freeze({ capacity = 8, refillPerSecond = 3 } :: RateLimiter.Options),
+		RequestBumpRateLimit = table.freeze({ capacity = 3, refillPerSecond = 1 } :: RateLimiter.Options),
+		-- Minimum seconds between two PlayerState pushes to the same client (coalescing).
+		StatePushIntervalSeconds = 0.2,
+	}),
+
+	Gameplay = table.freeze({
+		-- Server simulation loops (seconds). Lower = more responsive, more CPU.
+		ShardTickSeconds = 0.1,
+		CollectTickSeconds = 0.2,
+		HazardTickSeconds = 0.25,
 	}),
 }
 

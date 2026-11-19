@@ -70,6 +70,8 @@ local function createStore(): StoreTypes.Store
 end
 
 local function saveProfile(player: Player, profile: Profile, release: boolean): boolean
+	-- Timestamp used for offline earnings on the next join.
+	profile.data.lastSeen = os.time()
 	local ok, failure, message = sessionStore:save(keyFor(player), profile.data, release, { player.UserId })
 	if ok then
 		profile.dirty = false
@@ -171,6 +173,15 @@ end
 
 function PlayerDataService.isLoaded(player: Player): boolean
 	return profiles[player] ~= nil
+end
+
+--[[
+	Returns the LIVE data table without copying, for hot loops (10 Hz simulation). Read-only by
+	contract: never mutate it — use update(). Prefer get() everywhere else.
+]]
+function PlayerDataService.peek(player: Player): PlayerData?
+	local profile = profiles[player]
+	return if profile then profile.data else nil
 end
 
 function PlayerDataService.get(player: Player): PlayerData?

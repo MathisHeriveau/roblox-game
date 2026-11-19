@@ -1,9 +1,9 @@
 --!strict
 --[[
-	MapService — generates the procedural map at boot.
+	MapService — generates and builds the floating island at boot.
 
-	Generation happens in init() (synchronous, no yields) so the map and SpawnLocation exist
-	before any character spawns.
+	Generation runs in init() (synchronous, no yields) so terrain, landmarks and spawns exist
+	before any character spawns. Exposes the layout for gameplay queries (tile under a position).
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -27,26 +27,31 @@ local built: MapBuilder.BuildResult? = nil
 
 function MapService.init(_self: any)
 	local started = os.clock()
-	layout = MapLayout.generate(GameConfig.Map)
-	built = MapBuilder.build(layout :: MapLayout.Layout, GameConfig.Map.MaxHeight, Workspace)
+	local generated = MapLayout.generate(GameConfig.Map)
+	layout = generated
+	built = MapBuilder.build(generated, Workspace, MapBuilder.terrainWriter(Workspace.Terrain))
 	log:info(
-		`generated seed {GameConfig.Map.Seed}: {#(layout :: MapLayout.Layout).tiles} tiles, `
-			.. `{#(layout :: MapLayout.Layout).collectibles} collectibles in {math.floor((os.clock() - started) * 1000)} ms`
+		`island seed {generated.seed}: {#generated.tiles} tiles, {#generated.props} props`
+			.. ` in {math.floor((os.clock() - started) * 1000)} ms`
 	)
 end
 
 function MapService.start(_self: any)
-	-- Nothing to run: the map is static once built. Kept explicit (every service has both phases).
+	-- The island is static once built.
 end
 
 function MapService.getLayout(): MapLayout.Layout
-	assert(layout ~= nil, "MapService: map not generated yet")
+	assert(layout ~= nil, "MapService: island not generated yet")
 	return layout
 end
 
-function MapService.getCollectibleParts(): { BasePart }
-	assert(built ~= nil, "MapService: map not built yet")
-	return built.collectibles
+function MapService.tileAt(position: Vector3): MapLayout.Tile?
+	return MapLayout.tileAt(MapService.getLayout(), position.X, position.Z)
+end
+
+function MapService.getMap(): Folder
+	assert(built ~= nil, "MapService: island not built yet")
+	return built.root
 end
 
 return MapService

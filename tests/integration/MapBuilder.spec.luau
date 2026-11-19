@@ -1,7 +1,7 @@
 --!strict
 --[[
-	Integration: MapLayout -> MapBuilder -> Instance tree. Runs headlessly (Lune creates real
-	Instances, without physics) and in Studio.
+	Integration: MapLayout -> MapBuilder. Terrain goes through a recording fake writer (Lune has no
+	voxel engine); Parts are real Instances.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,76 +11,86 @@ local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local MapSystems = ServerScriptService.Server.Systems.Map
 local MapBuilder = require(MapSystems.MapBuilder)
 local MapLayout = require(MapSystems.MapLayout)
+local Zones = require(ReplicatedStorage.Shared.Config.Zones)
+
+type Fill = { cframe: CFrame, size: Vector3, material: Enum.Material }
+
+local function fakeWriter(): (MapBuilder.TerrainWriter, { Fill }, { [Enum.Material]: Color3 })
+	local fills: { Fill } = {}
+	local colors: { [Enum.Material]: Color3 } = {}
+	local writer = {}
+	function writer.fillBlock(_self: any, cframe: CFrame, size: Vector3, material: Enum.Material)
+		table.insert(fills, { cframe = cframe, size = size, material = material })
+	end
+	function writer.setMaterialColor(_self: any, material: Enum.Material, color: Color3)
+		colors[material] = color
+	end
+	return writer :: any, fills, colors
+end
 
 return function()
 	describe("MapBuilder.build", function()
-		local container: Folder
 		local layout: MapLayout.Layout
+		local container: Folder
 		local result: MapBuilder.BuildResult
+		local fills: { Fill }
+		local colors: { [Enum.Material]: Color3 }
+
+		beforeAll(function()
+			layout = MapLayout.generate(GameConfig.Map)
+		end)
 
 		beforeEach(function()
 			container = Instance.new("Folder")
-			layout = MapLayout.generate(GameConfig.Map)
-			result = MapBuilder.build(layout, GameConfig.Map.MaxHeight, container)
+			local writer
+			writer, fills, colors = fakeWriter()
+			result = MapBuilder.build(layout, container, writer)
 		end)
 
 		afterEach(function()
 			container:Destroy()
 		end)
 
-		it("parents one Map folder with the expected sections", function()
+		it("paints every zone's terrain colour", function()
+			for _, zone in Zones.list do
+				expect(colors[zone.topMaterial]).to.equal(zone.topColor)
+			end
+			expect(colors[Enum.Material.CrackedLava]).to.be.ok()
+		end)
+
+		it("fills a surface block (and rock underneath) for every tile", function()
+			local surfaces = 0
+			for _, fill in fills do
+				if fill.material ~= Enum.Material.Rock then
+					surfaces += 1
+				end
+				expect(fill.size.X).to.equal(layout.tileSize)
+				expect(fill.size.Y > 0).to.equal(true)
+			end
+			expect(surfaces).to.equal(#layout.tiles)
+			expect(#fills > #layout.tiles).to.equal(true)
+		end)
+
+		it("puts each surface block's top exactly at the tile height", function()
+			local tile = layout.tiles[1]
+			for _, fill in fills do
+				local position = fill.cframe.Position
+				if position.X == tile.x and position.Z == tile.z and fill.material ~= Enum.Material.Rock then
+					expect(position.Y + fill.size.Y / 2).to.be.near(tile.height, 1e-6)
+				end
+			end
+		end)
+
+		it("parents one Map folder with props, landmarks, bounds and the plaza spawn", function()
 			local map = container:FindFirstChild("Map")
-			expect(map).to.be.ok()
-			expect(result.root).to.equal(map)
-			for _, name in { "Tiles", "Bounds", "Collectibles", "SpawnLocation" } do
-				expect((map :: Instance):FindFirstChild(name)).to.be.ok()
+			expect(map).to.equal(result.root)
+			for _, name in { "Props", "Landmarks", "Bounds" } do
+				expect(result.root:FindFirstChild(name)).to.be.ok()
 			end
-			expect(result.root:GetAttribute("Seed")).to.equal(GameConfig.Map.Seed)
-		end)
-
-		it("builds one anchored part per tile", function()
-			local tiles = result.root:FindFirstChild("Tiles") :: Folder
-			local children = tiles:GetChildren()
-			expect(#children).to.equal(#layout.tiles)
-			for _, child in children do
-				expect((child :: Part).Anchored).to.equal(true)
-				expect((child :: Part).CanTouch).to.equal(false)
-			end
-		end)
-
-		it("places tile top surfaces at the layout height", function()
-			local tiles = result.root:FindFirstChild("Tiles") :: Folder
-			local sample = layout.tiles[#layout.tiles]
-			local part = tiles:FindFirstChild(`Tile_{sample.gridX}_{sample.gridZ}`) :: Part
-			-- CFrame.Position (not Part.Position): portable across the engine and headless runtimes.
-			local top = part.CFrame.Position.Y + part.Size.Y / 2
-			expect(top).to.be.near(sample.height, 1e-3)
-		end)
-
-		it("creates active, touchable, non-colliding collectibles", function()
-			expect(#result.collectibles).to.equal(#layout.collectibles)
-			for _, part in result.collectibles do
-				expect(part:GetAttribute("Active")).to.equal(true)
-				expect(type(part:GetAttribute("CollectibleId"))).to.equal("string")
-				expect(part.CanCollide).to.equal(false)
-				expect(part.Anchored).to.equal(true)
-			end
-		end)
-
-		it("creates a neutral spawn at the plateau", function()
-			local spawnLocation = result.spawnLocation
-			expect(spawnLocation.Neutral).to.equal(true)
-			expect(spawnLocation.CFrame.Position.X).to.equal(0)
-			expect(spawnLocation.CFrame.Position.Z).to.equal(0)
-		end)
-
-		it("encloses the playable area with four invisible walls", function()
-			local bounds = result.root:FindFirstChild("Bounds") :: Folder
-			local walls = bounds:GetChildren()
-			expect(#walls).to.equal(4)
-			for _, wall in walls do
-				expect((wall :: Part).Transparency).to.equal(1)
-			end
+			expect(#(result.root:FindFirstChild("Props") :: Folder):GetChildren()).to.equal(#layout.props)
+			expect(#(result.root:FindFirstChild("Bounds") :: Folder):GetChildren()).to.equal(4)
+			expect(result.spawnLocation.Neutral).to.equal(true)
+			expect(result.root:GetAttribute("Seed")).to.equal(layout.seed)
 		end)
 	end)
 end

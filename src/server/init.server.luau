@@ -11,8 +11,16 @@ local Lifecycle = require(ReplicatedStorage.Shared.Utils.Lifecycle)
 local Services = script.Services
 
 Lifecycle.boot({
+	require(Services.WorldService),
 	require(Services.PlayerDataService),
-	require(Services.PlayerStateService),
 	require(Services.MapService),
-	require(Services.CollectibleService),
+	require(Services.BaseService),
+	require(Services.ShardService),
+	require(Services.SkyEventService),
+	require(Services.ShopService),
+	require(Services.CharacterService),
+	require(Services.BumpService),
+	require(Services.HazardService),
+	require(Services.LeaderstatsService),
+	require(Services.PlayerStateService),
 })
