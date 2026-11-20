@@ -37,7 +37,7 @@ local definitions: { [string]: Definition } = {
 	-- Server -> client. Payload: ({ text: string, style: string, rarity: number? }).
 	Notify = table.freeze({ kind = "Event", direction = "ServerToClient" } :: Definition),
 
-	-- Server -> client. Payload: ({ kind: "meteors" | "cometWarning" | "cometImpact" | "bump", ... }).
+	-- Server -> client. Payload: ({ kind: "meteors" | "cometWarning" | "cometImpact" | "raid" | "bump", ... }).
 	-- Cosmetic triggers for VFX/SFX/banners; gameplay never depends on receiving them.
 	WorldEvent = table.freeze({ kind = "Event", direction = "ServerToClient" } :: Definition),
 

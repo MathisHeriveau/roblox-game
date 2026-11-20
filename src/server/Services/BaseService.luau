@@ -4,8 +4,9 @@
 	and offline earnings.
 
 	Income model: every second each player's Starlings add income to their base *vault*; stepping
-	onto the collect pad banks the vault into coins, once per visit (CollectPadRules). Offline time also fills the vault (capped and
-	reduced, see GameConfig.Economy). All amounts are computed by Shared/Game/Economy.
+	onto the collect pad banks the vault into coins, once per visit (CollectPadRules). Offline time
+	also fills the vault (capped and reduced, see GameConfig.Economy). All amounts are computed by
+	Shared/Game/Economy.
 
 	Public API (server only):
 	  BaseService.getPlot(player) -> PlotRefs?
