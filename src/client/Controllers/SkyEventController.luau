@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local ClientNet = require(ReplicatedStorage.Shared.Net.ClientNet)
+local CometTracker = require(script.Parent.Parent.Hud.CometTracker)
 local EventBanner = require(script.Parent.Parent.UI.Components.EventBanner)
 local Format = require(ReplicatedStorage.Shared.Game.Format)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
@@ -26,15 +27,10 @@ local SkyEventController = {
 	name = "SkyEventController",
 }
 
-type CometInfo = {
-	position: Vector3,
-	impactAt: number,
-	zoneName: string,
-	removeMarker: () -> (),
-}
-
 local banner: EventBanner.EventBanner
-local comet: CometInfo? = nil
+local tracker = CometTracker.new()
+-- Removes the current comet's target marker (kept until the banner ends: it shows where the core is).
+local removeMarker: (() -> ())? = nil
 
 local function rarityColor(value: unknown): Color3
 	return if Rarities.isValid(value) then Rarities.get(value :: number).color else Theme.Color.Gold
@@ -46,13 +42,12 @@ local function localRootPosition(): Vector3?
 	return if root and root:IsA("BasePart") then root.Position else nil
 end
 
-local function clearComet()
-	local current = comet
-	if current then
-		current.removeMarker()
+local function clearMarker()
+	local remove = removeMarker
+	removeMarker = nil
+	if remove then
+		remove()
 	end
-	comet = nil
-	banner.hideComet()
 end
 
 local function onWorldEvent(payload: unknown)
@@ -77,21 +72,18 @@ local function onWorldEvent(payload: unknown)
 		and type(event.impactAt) == "number"
 		and type(event.zoneName) == "string"
 	then
-		clearComet()
+		clearMarker()
 		local color = rarityColor(event.rarity)
-		comet = {
-			position = event.position,
-			impactAt = event.impactAt,
-			zoneName = string.sub(event.zoneName, 1, 40),
-			removeMarker = Vfx.targetMarker(event.position, Theme.Color.Red, 16),
-		}
+		tracker:warn(event.impactAt, string.sub(event.zoneName, 1, 40))
+		removeMarker = Vfx.targetMarker(event.position, Theme.Color.Red, 16)
 		Vfx.meteor(event.position, color, event.impactAt, events.CometImpactDelaySeconds, 2.6)
 	elseif event.kind == "cometImpact" and typeof(event.position) == "Vector3" then
 		local here = localRootPosition()
 		if here and (here - event.position).Magnitude < 220 then
 			Vfx.cameraShake(1.4, 0.9)
 		end
-		clearComet()
+		-- Not the end of the comet: the banner now calls players to the core (CometTracker).
+		tracker:impact(Workspace:GetServerTimeNow())
 	elseif event.kind == "raid" and typeof(event.position) == "Vector3" then
 		Vfx.shockwave(event.position, rarityColor(event.rarity), 18)
 		Sfx.playAt(Sfx.IMPACT, event.position, 0.5)
@@ -122,19 +114,12 @@ local function updateTexts()
 		else ""
 	banner.setCountdowns(meteorText, cometText)
 
-	local current = comet
-	if current then
-		local remaining = current.impactAt - Workspace:GetServerTimeNow()
-		if remaining < -4 then
-			clearComet()
-		else
-			banner.showComet(
-				"COMET INCOMING!",
-				if remaining > 0
-					then `Crash in {Format.duration(remaining)} · {current.zoneName}`
-					else `Crashed in {current.zoneName}: grab the core!`
-			)
-		end
+	local status = tracker:status(Workspace:GetServerTimeNow())
+	if status then
+		banner.showComet(status.title, status.subtitle)
+	else
+		clearMarker()
+		banner.hideComet()
 	end
 end
 
