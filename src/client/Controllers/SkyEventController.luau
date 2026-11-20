@@ -2,6 +2,7 @@
 --[[
 	SkyEventController — makes the sky events felt: countdowns, the comet banner and target marker,
 	meteor/comet visuals timed on the server clock, bump shockwaves and camera shake.
+	The banners live in the HUD's top-centre column (HudController.mountTop).
 	Purely cosmetic: shards exist and are collected server-side regardless.
 ]]
 
@@ -10,10 +11,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local ClientNet = require(ReplicatedStorage.Shared.Net.ClientNet)
-local Create = require(script.Parent.Parent.UI.Create)
 local EventBanner = require(script.Parent.Parent.UI.Components.EventBanner)
 local Format = require(ReplicatedStorage.Shared.Game.Format)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
+local HudController = require(script.Parent.HudController)
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
 local Sfx = require(script.Parent.Parent.Effects.Sfx)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -32,8 +33,6 @@ type CometInfo = {
 	removeMarker: () -> (),
 }
 
-local gui: ScreenGui
-local scale: UIScale
 local banner: EventBanner.EventBanner
 local comet: CometInfo? = nil
 
@@ -140,28 +139,12 @@ local function updateTexts()
 end
 
 function SkyEventController.init(_self: any)
-	scale = Instance.new("UIScale")
 	banner = EventBanner.new()
-	banner.root.Position = UDim2.new(0.5, 0, 0, 10)
-	gui = Create("ScreenGui", {
-		Name = "SkyEvents",
-		ResetOnSpawn = false,
-		DisplayOrder = 4,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets,
-	}, { scale :: Instance, banner.root }) :: ScreenGui
+	HudController.mountTop(banner.countdowns, HudController.TopSlot.Countdowns)
+	HudController.mountTop(banner.comet, HudController.TopSlot.Comet)
 end
 
 function SkyEventController.start(_self: any)
-	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-	local camera = Workspace.CurrentCamera
-	if camera then
-		local function rescale()
-			scale.Scale = Theme.scaleFor(camera.ViewportSize)
-		end
-		camera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
-		rescale()
-	end
 	ClientNet.onEvent("WorldEvent", onWorldEvent)
 	while true do
 		updateTexts()

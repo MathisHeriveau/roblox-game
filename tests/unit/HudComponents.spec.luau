@@ -7,6 +7,7 @@ local CoinPill = require(Components.CoinPill)
 local EventBanner = require(Components.EventBanner)
 local LevelBadge = require(Components.LevelBadge)
 local ShopCard = require(Components.ShopCard)
+local ZoneBanner = require(Components.ZoneBanner)
 
 local function find(root: Instance, name: string): Instance
 	return root:FindFirstChild(name, true) :: Instance
@@ -80,12 +81,58 @@ return function()
 	describe("EventBanner", function()
 		it("toggles the comet banner", function()
 			local banner = EventBanner.new()
-			local comet = find(banner.root, "CometBanner") :: Frame
-			expect(comet.Visible).to.equal(false)
+			expect(banner.comet.Name).to.equal("CometBanner")
+			expect(banner.comet.Visible).to.equal(false)
 			banner.showComet("COMET INCOMING!", "Crash in 0:20 · Lava Fields")
-			expect(comet.Visible).to.equal(true)
+			expect(banner.comet.Visible).to.equal(true)
 			banner.hideComet()
-			expect(comet.Visible).to.equal(false)
+			expect(banner.comet.Visible).to.equal(false)
+			banner.setCountdowns("☄️ Meteor shower in 0:12", "")
+			expect((find(banner.countdowns, "Meteor") :: TextLabel).Text).to.equal("☄️ Meteor shower in 0:12")
+			banner.countdowns:Destroy()
+			banner.comet:Destroy()
+		end)
+	end)
+
+	describe("ZoneBanner", function()
+		local function luminance(color: Color3): number
+			return 0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B
+		end
+
+		it("shows the zone name and a light subtitle with a dark outline (readable anywhere)", function()
+			local banner = ZoneBanner.new()
+			expect(banner.root.Visible).to.equal(false)
+			banner.show("🌿 STARTING MEADOW", "Shards drop here · zone 1", Color3.fromRGB(76, 175, 80))
+			expect(banner.root.Visible).to.equal(true)
+			local title = find(banner.root, "Title") :: TextLabel
+			local subtitle = find(banner.root, "Subtitle") :: TextLabel
+			expect(title.Text).to.equal("🌿 STARTING MEADOW")
+			expect(subtitle.Text).to.equal("Shards drop here · zone 1")
+			expect(luminance(subtitle.TextColor3) > 0.8).to.equal(true)
+			local outline = subtitle:FindFirstChildOfClass("UIStroke") :: UIStroke
+			expect(luminance(outline.Color) < 0.2).to.equal(true)
+			-- Sits on its own panel: readable over the bright sky and the dark base sign alike.
+			expect(banner.root.BackgroundTransparency < 0.5).to.equal(true)
+			banner.root:Destroy()
+		end)
+
+		it("fades text, outlines and panel together, then hides", function()
+			local banner = ZoneBanner.new()
+			banner.show("☁️ FLOATING SKY ISLANDS", "Shards drop here · zone 4", Color3.new(0.5, 0.4, 0.9))
+			banner.setFade(1)
+			expect(banner.root.Visible).to.equal(false)
+			for _, descendant in banner.root:GetDescendants() do
+				if descendant:IsA("TextLabel") then
+					expect(descendant.TextTransparency).to.be.near(1, 1e-3)
+				elseif descendant:IsA("UIStroke") then
+					-- A stroke left opaque on faded text is the "dark on dark" ghost text.
+					expect(descendant.Transparency).to.be.near(1, 1e-3)
+				end
+			end
+			expect(banner.root.BackgroundTransparency).to.be.near(1, 1e-3)
+			banner.show("🏜️ CRYSTAL DESERT", "Shards drop here · zone 2", Color3.new(1, 0.8, 0.4))
+			expect(banner.root.Visible).to.equal(true)
+			expect((find(banner.root, "Subtitle") :: TextLabel).TextTransparency).to.equal(0)
 			banner.root:Destroy()
 		end)
 	end)

@@ -1,14 +1,16 @@
 --!strict
 --[[
 	EventBanner — sky event UI: a small countdown pill (next meteor shower / comet) and the big
-	purple "COMET INCOMING" banner from the art style sheet.
+	purple "COMET INCOMING" banner from the art style sheet. Both are returned separately so the
+	HUD can stack them in its top-centre column (countdowns, zone banner, comet banner).
 ]]
 
 local Create = require(script.Parent.Parent.Create)
 local Theme = require(script.Parent.Parent.Theme)
 
 export type EventBanner = {
-	root: Frame,
+	countdowns: Frame,
+	comet: Frame,
 	setCountdowns: (meteorText: string, cometText: string) -> (),
 	showComet: (title: string, subtitle: string) -> (),
 	hideComet: () -> (),
@@ -41,8 +43,6 @@ function EventBanner.new(): EventBanner
 
 	local pill = Create("Frame", {
 		Name = "Countdowns",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.fromScale(0.5, 0),
 		Size = UDim2.fromOffset(300, 54),
 		BackgroundColor3 = Theme.Color.Panel,
 		BackgroundTransparency = 0.15,
@@ -87,8 +87,6 @@ function EventBanner.new(): EventBanner
 
 	local banner = Create("Frame", {
 		Name = "CometBanner",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 64),
 		Size = UDim2.fromOffset(520, 92),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		Visible = false,
@@ -97,15 +95,9 @@ function EventBanner.new(): EventBanner
 	Theme.border(banner, 4)
 	Theme.gradient(banner, Theme.Color.Purple, Theme.Color.PurpleDark)
 
-	local root = Create("Frame", {
-		Name = "EventBanner",
-		BackgroundTransparency = 1,
-		AnchorPoint = Vector2.new(0.5, 0),
-		Size = UDim2.fromOffset(520, 160),
-	}, { pill, banner }) :: Frame
-
 	return {
-		root = root,
+		countdowns = pill,
+		comet = banner,
 		setCountdowns = function(meteorText: string, cometText: string)
 			meteorLine.Text = meteorText
 			cometLine.Text = cometText
