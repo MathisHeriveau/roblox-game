@@ -3,8 +3,10 @@
 	JumpPadController — launches the local character when it steps on a jump pad.
 
 	Characters are physically simulated by their own client, so the launch is applied here. Each
-	pad carries a precomputed LaunchVelocity (MapLayout.launchVelocity) that lands exactly on the
-	target island or shore. Purely movement: no reward depends on it, so client authority is fine.
+	pad carries a precomputed LaunchVelocity and FlightTime (MapLayout.launchVelocity). The
+	Humanoid's air control would cancel the horizontal part of a one-off launch, so a LinearVelocity
+	holds it for the flight (JumpFlight decides when to let go); gravity does the vertical part.
+	Purely movement: no reward depends on it, so client authority is fine.
 ]]
 
 local CollectionService = game:GetService("CollectionService")
@@ -12,6 +14,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local JumpFlight = require(script.Parent.Parent.Movement.JumpFlight)
 local Sfx = require(script.Parent.Parent.Effects.Sfx)
 local ShardVisuals = require(ReplicatedStorage.Shared.Game.ShardVisuals)
 local Vfx = require(script.Parent.Parent.Effects.Vfx)
@@ -23,8 +26,17 @@ local JumpPadController = {
 	name = "JumpPadController",
 }
 
+type Flight = {
+	hold: LinearVelocity,
+	attachment: Attachment,
+	startedAt: number,
+	flightTime: number,
+	humanoid: Humanoid,
+}
+
 local pads: { [BasePart]: boolean } = {}
 local lastLaunch = 0
+local flight: Flight? = nil
 
 local function track(instance: Instance)
 	if instance:IsA("BasePart") then
@@ -32,7 +44,58 @@ local function track(instance: Instance)
 	end
 end
 
+local function endFlight()
+	local current = flight
+	if current then
+		current.hold:Destroy()
+		current.attachment:Destroy()
+	end
+	flight = nil
+end
+
+local function launch(root: BasePart, humanoid: Humanoid, plan: JumpFlight.Plan)
+	endFlight()
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "JumpPadAttachment"
+	attachment.Parent = root
+	local hold = Instance.new("LinearVelocity")
+	hold.Name = "JumpPadHold"
+	hold.Attachment0 = attachment
+	hold.RelativeTo = Enum.ActuatorRelativeTo.World
+	hold.VelocityConstraintMode = Enum.VelocityConstraintMode.Plane
+	hold.PrimaryTangentAxis = Vector3.xAxis
+	hold.SecondaryTangentAxis = Vector3.zAxis
+	hold.PlaneVelocity = Vector2.new(plan.velocity.X, plan.velocity.Z)
+	-- Only the horizontal plane is constrained: it must win against the Humanoid's air control.
+	hold.ForceLimitsEnabled = false
+	hold.Parent = root
+
+	humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+	root.AssemblyLinearVelocity = plan.velocity
+	flight = {
+		hold = hold,
+		attachment = attachment,
+		startedAt = os.clock(),
+		flightTime = plan.flightTime,
+		humanoid = humanoid,
+	}
+end
+
+local function updateFlight()
+	local current = flight
+	if current == nil then
+		return
+	end
+	local humanoid = current.humanoid
+	local onGround = humanoid.FloorMaterial ~= Enum.Material.Air
+	local gone = current.hold.Parent == nil or humanoid.Health <= 0
+	if gone or JumpFlight.shouldRelease(os.clock() - current.startedAt, current.flightTime, onGround) then
+		endFlight()
+	end
+end
+
 local function step()
+	updateFlight()
 	local now = os.clock()
 	if now - lastLaunch < COOLDOWN_SECONDS then
 		return
@@ -52,11 +115,10 @@ local function step()
 			local height = offset.Y
 			offset *= Vector3.new(1, 0, 1)
 			if offset.Magnitude <= PAD_RADIUS and height > -1 and height < 7 then
-				local velocity = pad:GetAttribute("LaunchVelocity")
-				if typeof(velocity) == "Vector3" then
+				local plan = JumpFlight.read(pad)
+				if plan then
 					lastLaunch = now
-					humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
-					root.AssemblyLinearVelocity = velocity
+					launch(root, humanoid, plan)
 					Sfx.play(Sfx.BUMP, 0.6)
 					Vfx.shockwave(pad.Position, pad.Color, 9)
 				end
@@ -75,6 +137,8 @@ function JumpPadController.start(_self: any)
 		track(instance)
 	end
 	CollectionService:GetInstanceAddedSignal(ShardVisuals.JUMP_PAD_TAG):Connect(track)
+	-- A new character never inherits a flight (the hold died with the old one).
+	Players.LocalPlayer.CharacterAdded:Connect(endFlight)
 	-- Checked every frame: at full speed a character crosses a pad in a few frames.
 	RunService.Heartbeat:Connect(step)
 end

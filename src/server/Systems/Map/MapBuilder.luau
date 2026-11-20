@@ -327,7 +327,8 @@ local PAD_COLORS = {
 }
 
 -- Jump pads launch players client-side (characters are owned by their client); the launch
--- velocity is precomputed by MapLayout so the flight lands exactly on the target.
+-- velocity and flight time are precomputed by MapLayout so the flight lands exactly on the
+-- target. The client holds the horizontal velocity for FlightTime (see client JumpFlight).
 local function buildJumpPad(pad: MapLayout.JumpPad, parent: Instance): Part
 	local position = Vector3.new(pad.position.x, pad.position.y, pad.position.z)
 	local color = PAD_COLORS[pad.kind]
@@ -341,6 +342,7 @@ local function buildJumpPad(pad: MapLayout.JumpPad, parent: Instance): Part
 		CastShadow = false,
 	}, parent)
 	plate:SetAttribute("LaunchVelocity", Vector3.new(pad.velocity.x, pad.velocity.y, pad.velocity.z))
+	plate:SetAttribute("FlightTime", pad.flightTime)
 	plate:SetAttribute("Island", pad.island)
 	plate:SetAttribute("Kind", pad.kind)
 	plate:AddTag(ShardVisuals.JUMP_PAD_TAG)

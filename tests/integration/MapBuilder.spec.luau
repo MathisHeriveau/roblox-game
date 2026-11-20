@@ -94,6 +94,13 @@ return function()
 			for _, pad in pads:GetChildren() do
 				expect(pad:HasTag("JumpPad")).to.equal(true)
 				expect(typeof(pad:GetAttribute("LaunchVelocity"))).to.equal("Vector3")
+				-- The client holds the horizontal launch for this long (JumpFlight).
+				expect(type(pad:GetAttribute("FlightTime"))).to.equal("number")
+			end
+			for index, jump in layout.jumpPads do
+				local name = if jump.kind == "up" then `JumpPad{jump.island}` else `ReturnPad{jump.island}`
+				local built = pads:FindFirstChild(name) :: BasePart
+				expect(built:GetAttribute("FlightTime")).to.be.near(layout.jumpPads[index].flightTime, 1e-6)
 			end
 			expect(result.spawnLocation.Neutral).to.equal(true)
 			expect(result.root:GetAttribute("Seed")).to.equal(layout.seed)
