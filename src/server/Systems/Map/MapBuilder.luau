@@ -5,6 +5,11 @@
 
 	Terrain access goes through an injected TerrainWriter so the builder is testable headlessly
 	(tests record the calls; production wraps Workspace.Terrain). Never yields: safe in init().
+
+	Terrain renders a filled block's top half a voxel (TERRAIN_SURFACE_OFFSET = 2 studs) above the
+	block, at any height (measured in Studio, checked by TerrainSurface.spec). Surface blocks are
+	filled that much lower so the walkable surface sits exactly at each tile's layout height,
+	which everything else (plots, shards, pads, hazards) is placed against.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -24,6 +29,7 @@ export type BuildResult = {
 }
 
 local TOP_THICKNESS = 4
+local TERRAIN_SURFACE_OFFSET = 2
 local WALL_HEIGHT = 400
 local HUB_MATERIAL = Enum.Material.Pavement
 local HUB_COLOR = Color3.fromRGB(156, 148, 196)
@@ -32,7 +38,9 @@ local ROCK_COLOR = Color3.fromRGB(92, 76, 146)
 local LAVA_MATERIAL = Enum.Material.CrackedLava
 local LAVA_COLOR = Color3.fromRGB(255, 92, 24)
 
-local MapBuilder = {}
+local MapBuilder = {
+	TERRAIN_SURFACE_OFFSET = TERRAIN_SURFACE_OFFSET,
+}
 
 function MapBuilder.terrainWriter(terrain: Terrain): TerrainWriter
 	local writer = {}
@@ -78,6 +86,12 @@ local function topMaterial(tile: MapLayout.Tile): Enum.Material
 	return Zones.get(tile.tier).topMaterial
 end
 
+-- Surface block of a tile (top material layer), placed so the rendered surface is at tile.height.
+function MapBuilder.surfaceBlock(tile: { x: number, z: number, height: number }, tileSize: number): (CFrame, Vector3)
+	local top = tile.height - TERRAIN_SURFACE_OFFSET
+	return CFrame.new(tile.x, top - TOP_THICKNESS / 2, tile.z), Vector3.new(tileSize, TOP_THICKNESS, tileSize)
+end
+
 local function buildTerrain(layout: MapLayout.Layout, writer: TerrainWriter)
 	writer:setMaterialColor(HUB_MATERIAL, HUB_COLOR)
 	writer:setMaterialColor(ROCK_MATERIAL, ROCK_COLOR)
@@ -88,13 +102,9 @@ local function buildTerrain(layout: MapLayout.Layout, writer: TerrainWriter)
 
 	local size = layout.tileSize
 	for _, tile in layout.tiles do
-		local top = tile.height
-		writer:fillBlock(
-			CFrame.new(tile.x, top - TOP_THICKNESS / 2, tile.z),
-			Vector3.new(size, TOP_THICKNESS, size),
-			topMaterial(tile)
-		)
-		local rockTop = top - TOP_THICKNESS
+		local surfaceCFrame, surfaceSize = MapBuilder.surfaceBlock(tile, size)
+		writer:fillBlock(surfaceCFrame, surfaceSize, topMaterial(tile))
+		local rockTop = tile.height - TERRAIN_SURFACE_OFFSET - TOP_THICKNESS
 		local rockHeight = rockTop - tile.bottom
 		if rockHeight > 0 then
 			writer:fillBlock(

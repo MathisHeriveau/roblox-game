@@ -19,8 +19,10 @@ local MapLayout = require(script.Parent.Parent.Map.MapLayout)
 
 export type Hazard = "safe" | "void" | "lava"
 
--- A character within this many studs above a lava tile's surface stands in the lava.
-local LAVA_REACH = 5
+-- A character root within this many studs above a lava tile's height stands in the lava. A standing
+-- R15 root is ~3.3 studs above the ground and the terrain rises up to ~2.2 studs at a pit's rim
+-- (measured in Studio), so 6 covers the whole pit while a jump still clears it briefly.
+local LAVA_REACH = 6
 
 local HazardRules = {
 	LAVA_REACH = LAVA_REACH,

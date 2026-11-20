@@ -32,6 +32,16 @@ return function()
 			expect(HazardRules.classify(10 + HazardRules.LAVA_REACH, tile("lava", 10), VOID)).to.equal("safe")
 		end)
 
+		-- Regression (measured in Studio): a standing R15 root is ~3.3 studs above the ground, and
+		-- the terrain rises up to ~2.2 studs at the rim of a lava pit where it blends into the
+		-- neighbouring tiles. Standing anywhere on the pit must burn.
+		it("burns a character standing anywhere in a lava pit, rim included", function()
+			local STANDING_ROOT = 3.3
+			local RIM_RISE = 2.2
+			expect(HazardRules.classify(10 + STANDING_ROOT, tile("lava", 10), VOID)).to.equal("lava")
+			expect(HazardRules.classify(10 + RIM_RISE + STANDING_ROOT, tile("lava", 10), VOID)).to.equal("lava")
+		end)
+
 		it("burns inside the lava reach", function()
 			expect(HazardRules.classify(10, tile("lava", 10), VOID)).to.equal("lava")
 			expect(HazardRules.classify(10 + HazardRules.LAVA_REACH - 0.01, tile("lava", 10), VOID)).to.equal("lava")

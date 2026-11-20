@@ -71,14 +71,24 @@ return function()
 			expect(#fills > #layout.tiles).to.equal(true)
 		end)
 
-		it("puts each surface block's top exactly at the tile height", function()
+		-- Regression: Roblox renders a filled block's top half a voxel (2 studs) higher, so every
+		-- surface stood 2 studs above the layout (plot floors buried, lava out of reach). The
+		-- engine side is checked by TerrainSurface.spec (Studio only).
+		it("fills each surface block so the rendered surface lands on the tile height", function()
 			local tile = layout.tiles[1]
+			local checked = 0
 			for _, fill in fills do
 				local position = fill.cframe.Position
 				if position.X == tile.x and position.Z == tile.z and fill.material ~= Enum.Material.Rock then
-					expect(position.Y + fill.size.Y / 2).to.be.near(tile.height, 1e-6)
+					expect(position.Y + fill.size.Y / 2 + MapBuilder.TERRAIN_SURFACE_OFFSET).to.be.near(
+						tile.height,
+						1e-6
+					)
+					checked += 1
 				end
 			end
+			expect(checked).to.equal(1)
+			expect(MapBuilder.TERRAIN_SURFACE_OFFSET).to.equal(2)
 		end)
 
 		it("parents one Map folder with props, landmarks, bounds and the plaza spawn", function()
