@@ -1,10 +1,14 @@
 --!strict
 --[[
 	WorldService — the Comet Raiders atmosphere: violet dusk sky full of stars, glow (bloom) for
-	the neon shards and Starlings, and quick respawns when falling off the floating island.
+	the neon shards and Starlings, and the gravity jump pads are tuned for.
 
 	Also removes leftovers of Studio place templates at runtime (the template "Baseplate" would
 	otherwise cover the void under the island). Never touches the saved place.
+
+	Only script-writable properties belong here: Workspace.FallenPartsDestroyHeight needs the
+	PluginOrOpenCloud capability and throws from a game Script (it used to abort the whole server
+	boot). Falling off the island is detected by HazardService instead.
 ]]
 
 local Lighting = game:GetService("Lighting")
@@ -80,7 +84,6 @@ function WorldService.init(_self: any)
 	grading.Brightness = 0.02
 	grading.TintColor = Color3.fromRGB(255, 246, 255)
 
-	Workspace.FallenPartsDestroyHeight = world.FallenPartsDestroyHeight
 	-- Jump pad trajectories are computed for this gravity (GameConfig.Map.Gravity).
 	Workspace.Gravity = GameConfig.Map.Gravity
 end

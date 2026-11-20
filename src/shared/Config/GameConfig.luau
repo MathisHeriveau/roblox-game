@@ -120,6 +120,9 @@ local GameConfig = {
 
 	Hazards = table.freeze({
 		LavaDamagePerSecond = 25,
+		-- Characters below this height fell off the floating island and respawn (HazardService).
+		-- Must stay below every walkable surface (checked by HazardRules.spec).
+		VoidKillHeight = -110,
 	}),
 
 	World = table.freeze({
@@ -131,7 +134,6 @@ local GameConfig = {
 		AtmosphereColor = Color3.fromRGB(199, 170, 255),
 		AtmosphereDecay = Color3.fromRGB(106, 80, 190),
 		StarCount = 4000,
-		FallenPartsDestroyHeight = -110,
 	}),
 }
 

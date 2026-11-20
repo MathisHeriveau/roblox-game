@@ -3,7 +3,9 @@
 	BaseController — the local player's side of bases and raids:
 	  - finds the player's own plot (OwnerUserId attribute set by the server);
 	  - hides prompts that make no sense for this player (Steal on their own Starlings, Lock on
-	    other people's consoles) — purely cosmetic, the server enforces every rule;
+	    other people's consoles) — purely cosmetic, the server enforces every rule. Hiding goes
+	    through PromptFilter, which restores the server value when a prompt must show again
+	    (the client boots before its plot owner replicates);
 	  - shows the base lock status pill with its countdown, pulsing red when the base is open.
 ]]
 
@@ -12,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 
 local Create = require(script.Parent.Parent.UI.Create)
 local Format = require(game:GetService("ReplicatedStorage").Shared.Game.Format)
+local PromptFilter = require(script.Parent.Parent.Bases.PromptFilter)
 local Theme = require(script.Parent.Parent.UI.Theme)
 
 local BaseController = {
@@ -23,7 +26,8 @@ local scale: UIScale
 local pill: Frame
 local pillText: TextLabel
 local pillStroke: UIStroke
-local hooked: { [ProximityPrompt]: boolean } = {}
+local filter = PromptFilter.new()
+local watched: { [ProximityPrompt]: boolean } = {}
 
 local function ownPlot(): Model?
 	local bases = Workspace:FindFirstChild("Bases")
@@ -38,22 +42,20 @@ local function ownPlot(): Model?
 	return nil
 end
 
--- Keeps a prompt disabled locally, even when the server toggles it later.
-local function suppress(prompt: ProximityPrompt)
-	prompt.Enabled = false
-	if hooked[prompt] then
+-- Lets the filter keep a hidden prompt hidden when the server turns it on, and forget it once
+-- destroyed. Plots are static, so each prompt is watched once for the session.
+local function watch(prompt: ProximityPrompt)
+	if watched[prompt] then
 		return
 	end
-	hooked[prompt] = true
+	watched[prompt] = true
 	prompt:GetPropertyChangedSignal("Enabled"):Connect(function()
-		if hooked[prompt] and prompt.Enabled then
-			prompt.Enabled = false
-		end
+		filter:onEnabledChanged(prompt)
 	end)
-end
-
-local function release(prompt: ProximityPrompt)
-	hooked[prompt] = nil
+	prompt.Destroying:Connect(function()
+		watched[prompt] = nil
+		filter:forget(prompt)
+	end)
 end
 
 local function refreshPrompts()
@@ -63,14 +65,15 @@ local function refreshPrompts()
 	end
 	local mine = ownPlot()
 	for _, plot in bases:GetChildren() do
+		local isMine = plot == mine
 		for _, prompt in plot:GetDescendants() do
 			if prompt:IsA("ProximityPrompt") then
-				local isMine = plot == mine
-				if (prompt.Name == "StealPrompt" and isMine) or (prompt.Name == "LockPrompt" and not isMine) then
-					suppress(prompt)
-				elseif hooked[prompt] then
-					-- Ownership changed: give control back to the server-replicated value.
-					release(prompt)
+				if PromptFilter.shouldHide(prompt.Name, isMine) then
+					watch(prompt)
+					filter:hide(prompt)
+				else
+					-- Ownership became known (or changed): restore the server-replicated value.
+					filter:show(prompt)
 				end
 			end
 		end

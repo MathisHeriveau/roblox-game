@@ -73,6 +73,7 @@ The map is built during `init()` so it exists before any character spawns.
 | `Systems/Map/MapLayout` | Pure procedural layout (tiles, heights, spawn, collectibles) from a seed. |
 | `Systems/Map/MapBuilder` | Layout → Instances (anchored tiles, invisible bounds, collectibles, SpawnLocation). |
 | `Systems/Collectibles/CollectibleRules` | Pure pickup decision (active, alive, loaded, distance, cooldown). |
+| `Systems/Hazards/HazardRules` | Pure hazard decision per character: `safe` / `lava` / `void` (fell below `GameConfig.Hazards.VoidKillHeight`). Replaces `Workspace.FallenPartsDestroyHeight`, which game Scripts cannot write (PluginOrOpenCloud capability). |
 | `Systems/Persistence/*` | Schema + migrations, Store abstraction (DataStore / in-memory), session-locked SessionStore. |
 | `Services/PlayerDataService` | Session lifecycle, `get`/`update`/`isLoaded`, `loaded`/`changed` signals. |
 | `Services/PlayerStateService` | Projects PlayerData → PlayerState; pushes updates; answers GetPlayerState. |
@@ -86,6 +87,7 @@ The map is built during `init()` so it exists before any character spawns.
 | `UI/Create` | Declarative Instance factory (props, children, Parent last). |
 | `UI/Components/CoinCounter` | Responsive HUD widget + `formatNumber`. |
 | `Controllers/HudController` | Builds the HUD, syncs it with PlayerState. |
+| `Bases/PromptFilter` | Client-only prompt hiding (Steal on own plot, Lock on others) that restores the server's `Enabled` value when a prompt must show again. |
 
 ## Networking
 
