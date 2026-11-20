@@ -4,7 +4,8 @@
 
 	Plots sit on a ring around the island centre, each facing the centre: the entrance (local -Z)
 	points at the plaza. Local frame: X = left/right, Z = back (+) / front (-), origin = plot centre.
-	Pedestals fill a grid in the back two thirds; the collect pad sits near the entrance.
+	Pedestals fill a grid in the back two thirds; the collect pad sits near the entrance and the
+	spawn in the front-left corner, clear of the pad (spawning on it would bank the vault).
 ]]
 
 export type Point = { x: number, z: number }
@@ -19,6 +20,8 @@ export type Plot = {
 	pedestals: { Point },
 	collectPad: Point,
 	spawn: Point,
+	-- Side of the square SpawnLocation (studs).
+	spawnSize: number,
 	sign: Point,
 }
 
@@ -90,7 +93,8 @@ function BaseLayout.generate(config: Config): { Plot }
 			size = size,
 			pedestals = pedestals,
 			collectPad = { x = 0, z = -half + 4 },
-			spawn = { x = 0, z = -half * 0.45 },
+			spawn = { x = -(half - 4.5), z = -half + 5 },
+			spawnSize = 4,
 			sign = { x = 0, z = half - 1 },
 		})
 	end

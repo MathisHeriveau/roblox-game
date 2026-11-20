@@ -20,6 +20,7 @@ local CarryIndicator = require(script.Parent.Parent.UI.Components.CarryIndicator
 local CoinPill = require(script.Parent.Parent.UI.Components.CoinPill)
 local Create = require(script.Parent.Parent.UI.Create)
 local IconButton = require(script.Parent.Parent.UI.Components.IconButton)
+local Layers = require(script.Parent.Parent.UI.Layers)
 local LevelBadge = require(script.Parent.Parent.UI.Components.LevelBadge)
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 local ShopController = require(script.Parent.ShopController)
@@ -172,6 +173,7 @@ function HudController.init(_self: any)
 	gui = Create("ScreenGui", {
 		Name = "Hud",
 		ResetOnSpawn = false,
+		DisplayOrder = Layers.Hud,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets,
 	}, { scale :: Instance, topLeft, right, carry.root, column }) :: ScreenGui

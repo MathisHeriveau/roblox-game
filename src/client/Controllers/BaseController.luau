@@ -14,6 +14,7 @@ local Workspace = game:GetService("Workspace")
 
 local Create = require(script.Parent.Parent.UI.Create)
 local Format = require(game:GetService("ReplicatedStorage").Shared.Game.Format)
+local Layers = require(script.Parent.Parent.UI.Layers)
 local PromptFilter = require(script.Parent.Parent.Bases.PromptFilter)
 local Theme = require(script.Parent.Parent.UI.Theme)
 
@@ -127,6 +128,7 @@ function BaseController.init(_self: any)
 	gui = Create("ScreenGui", {
 		Name = "BaseStatus",
 		ResetOnSpawn = false,
+		DisplayOrder = Layers.BaseStatus,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets,
 	}, { scale :: Instance, pill }) :: ScreenGui

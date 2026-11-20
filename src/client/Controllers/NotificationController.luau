@@ -1,6 +1,7 @@
 --!strict
 --[[
 	NotificationController — stacked toast notifications (server Notify + local messages).
+	Drawn under the shop modal (UI/Layers): purchase feedback is shown inside the shop instead.
 ]]
 
 local Players = game:GetService("Players")
@@ -10,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 
 local ClientNet = require(ReplicatedStorage.Shared.Net.ClientNet)
 local Create = require(script.Parent.Parent.UI.Create)
+local Layers = require(script.Parent.Parent.UI.Layers)
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
 local Sfx = require(script.Parent.Parent.Effects.Sfx)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -103,7 +105,7 @@ function NotificationController.init(_self: any)
 	gui = Create("ScreenGui", {
 		Name = "Notifications",
 		ResetOnSpawn = false,
-		DisplayOrder = 20,
+		DisplayOrder = Layers.Toasts,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		-- Full screen so the alarm flash covers everything (toasts sit well below the top bar).
 		ScreenInsets = Enum.ScreenInsets.None,

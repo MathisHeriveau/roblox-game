@@ -3,8 +3,8 @@
 	BaseService — player bases: plot assignment, Starling display, passive income, the collect pad
 	and offline earnings.
 
-	Income model: every second each player's Starlings add income to their base *vault*; walking
-	onto the collect pad banks the vault into coins. Offline time also fills the vault (capped and
+	Income model: every second each player's Starlings add income to their base *vault*; stepping
+	onto the collect pad banks the vault into coins, once per visit (CollectPadRules). Offline time also fills the vault (capped and
 	reduced, see GameConfig.Economy). All amounts are computed by Shared/Game/Economy.
 
 	Public API (server only):
@@ -33,6 +33,7 @@ local Log = require(ReplicatedStorage.Shared.Utils.Log)
 local Server = ServerScriptService.Server
 local BaseBuilder = require(Server.Systems.Base.BaseBuilder)
 local BaseLayout = require(Server.Systems.Base.BaseLayout)
+local CollectPadRules = require(Server.Systems.Base.CollectPadRules)
 local Notifier = require(Server.Systems.Notifier)
 local PlayerDataSchema = require(Server.Systems.Persistence.PlayerDataSchema)
 local PlayerDataService = require(Server.Services.PlayerDataService)
@@ -60,6 +61,8 @@ local signatures: { [Player]: string } = {}
 local lockedUntil: { [Player]: number } = {}
 -- Pedestal indices whose Starling is currently being carried away by a thief.
 local hidden: { [Player]: { [number]: boolean } } = {}
+-- Whether each owner stood on their collect pad at the previous collect tick.
+local onPad: { [Player]: boolean } = {}
 
 local function serverNow(): number
 	return Workspace:GetServerTimeNow()
@@ -184,6 +187,7 @@ local function release(player: Player)
 	signatures[player] = nil
 	lockedUntil[player] = nil
 	hidden[player] = nil
+	onPad[player] = nil
 	if refs then
 		resetPlot(refs)
 	end
@@ -224,24 +228,29 @@ local function incomeTick()
 	end
 end
 
+local function isOnOwnPad(player: Player, refs: BaseBuilder.PlotRefs): boolean
+	local root = rootOf(player)
+	if root == nil then
+		return false
+	end
+	local position = root.Position
+	return position.Y < 10 and BaseLayout.isOnCollectPad(refs.plot, position.X, position.Z, settings.CollectPadRadius)
+end
+
 local function collectTick()
 	for player, refs in owners do
-		local root = rootOf(player)
+		local isOnPad = isOnOwnPad(player, refs)
+		local wasOnPad = onPad[player] == true
+		onPad[player] = isOnPad
 		local data = PlayerDataService.peek(player)
-		if root and data and data.vault > 0 then
-			local position = root.Position
-			if
-				BaseLayout.isOnCollectPad(refs.plot, position.X, position.Z, settings.CollectPadRadius)
-				and position.Y < 10
-			then
-				local amount = data.vault
-				local banked = PlayerDataService.update(player, function(draft)
-					draft.coins += draft.vault
-					draft.vault = 0
-				end)
-				if banked then
-					Notifier.send(player, `+💰{Format.compact(amount)}`, "coins")
-				end
+		if data and CollectPadRules.shouldBank(wasOnPad, isOnPad, data.vault) then
+			local amount = data.vault
+			local banked = PlayerDataService.update(player, function(draft)
+				draft.coins += draft.vault
+				draft.vault = 0
+			end)
+			if banked then
+				Notifier.send(player, `+💰{Format.compact(amount)}`, "coins")
 			end
 		end
 	end

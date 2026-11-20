@@ -65,5 +65,22 @@ return function()
 				expect(math.abs(pedestal.x) < plot.size / 2 and math.abs(pedestal.z) < plot.size / 2).to.equal(true)
 			end
 		end)
+
+		-- Regression: the spawn sat 3.7 studs from the pad centre, inside the collect radius.
+		it("spawns players well clear of the collect pad and the pedestals", function()
+			local CHARACTER_MARGIN = 2
+			for _, plot in plots do
+				local halfDiagonal = plot.spawnSize / math.sqrt(2)
+				local toPad = math.sqrt((plot.spawn.x - plot.collectPad.x) ^ 2 + (plot.spawn.z - plot.collectPad.z) ^ 2)
+				expect(toPad - halfDiagonal >= GameConfig.Base.CollectPadRadius + CHARACTER_MARGIN).to.equal(true)
+				for _, pedestal in plot.pedestals do
+					local toPedestal = math.sqrt((plot.spawn.x - pedestal.x) ^ 2 + (plot.spawn.z - pedestal.z) ^ 2)
+					expect(toPedestal - halfDiagonal >= 2).to.equal(true)
+				end
+				-- Inside the fence.
+				expect(math.abs(plot.spawn.x) + plot.spawnSize / 2 < plot.size / 2 - 1).to.equal(true)
+				expect(math.abs(plot.spawn.z) + plot.spawnSize / 2 < plot.size / 2 - 1).to.equal(true)
+			end
+		end)
 	end)
 end

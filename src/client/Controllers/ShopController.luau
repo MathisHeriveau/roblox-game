@@ -4,7 +4,8 @@
 
 	Displays prices and effects computed with Shared/Game/Economy from the server-sent state, and
 	sends purchase *requests*; the server re-checks everything. Opens with the HUD buttons, the
-	"+" on the coin pill, or the B key.
+	"+" on the coin pill, or the B key. Purchase results show on the shop's own status line: toasts
+	are drawn under the shop (UI/Layers).
 ]]
 
 local Players = game:GetService("Players")
@@ -16,7 +17,7 @@ local ClientNet = require(ReplicatedStorage.Shared.Net.ClientNet)
 local Create = require(script.Parent.Parent.UI.Create)
 local Economy = require(ReplicatedStorage.Shared.Game.Economy)
 local Format = require(ReplicatedStorage.Shared.Game.Format)
-local NotificationController = require(script.Parent.NotificationController)
+local Layers = require(script.Parent.Parent.UI.Layers)
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
 local Sfx = require(script.Parent.Parent.Effects.Sfx)
@@ -25,6 +26,8 @@ local StateController = require(script.Parent.StateController)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local Upgrades = require(ReplicatedStorage.Shared.Config.Upgrades)
 local Zones = require(ReplicatedStorage.Shared.Config.Zones)
+
+local STATUS_SECONDS = 3
 
 type PlayerState = PlayerStateTypes.PlayerState
 
@@ -40,6 +43,8 @@ type CardEntry = {
 local gui: ScreenGui
 local scale: UIScale
 local list: ScrollingFrame
+local status: TextLabel
+local statusToken = 0
 local entries: { CardEntry } = {}
 local busy = false
 
@@ -163,6 +168,19 @@ local function render(state: PlayerState?)
 	end
 end
 
+local function showStatus(text: string, success: boolean)
+	statusToken += 1
+	local token = statusToken
+	status.Text = string.sub(text, 1, 120)
+	status.TextColor3 = if success then Theme.Color.Green else Theme.Color.Red
+	status.Visible = true
+	task.delay(STATUS_SECONDS, function()
+		if token == statusToken then
+			status.Visible = false
+		end
+	end)
+end
+
 local function buy(kind: string, id: string?)
 	if busy then
 		return
@@ -171,10 +189,11 @@ local function buy(kind: string, id: string?)
 	Sfx.play(Sfx.CLICK, 0.4)
 	local ok, result = ClientNet.invoke("RequestPurchase", kind, id)
 	busy = false
-	if not ok then
-		NotificationController.show("Shop unavailable, try again", "error")
-	elseif type(result) == "table" and (result :: any).ok == false and type((result :: any).message) == "string" then
-		NotificationController.show((result :: any).message, "error")
+	local response = if type(result) == "table" then result :: any else nil
+	if not ok or response == nil or type(response.message) ~= "string" then
+		showStatus("Shop unavailable, try again", false)
+	else
+		showStatus(response.message, response.ok == true)
 	end
 end
 
@@ -213,6 +232,7 @@ end
 
 function ShopController.close()
 	gui.Enabled = false
+	status.Visible = false
 end
 
 function ShopController.toggle()
@@ -255,6 +275,21 @@ function ShopController.init(_self: any)
 	}) :: TextLabel
 	Theme.textOutline(title, 3)
 
+	status = Create("TextLabel", {
+		Name = "Status",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -86, 0, 26),
+		Size = UDim2.new(0.5, -40, 0, 34),
+		Font = Theme.Font.Body,
+		Text = "",
+		TextColor3 = Theme.Color.Green,
+		TextScaled = true,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Visible = false,
+	}) :: TextLabel
+	Theme.textOutline(status, 1.5)
+
 	local close = Create("TextButton", {
 		Name = "Close",
 		AnchorPoint = Vector2.new(1, 0),
@@ -279,7 +314,7 @@ function ShopController.init(_self: any)
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.fromOffset(820, 600),
 		BackgroundColor3 = Theme.Color.Panel,
-	}, { scale :: Instance, title, close, list }) :: Frame
+	}, { scale :: Instance, title, status, close, list }) :: Frame
 	Theme.corner(panel, 30)
 	Theme.border(panel, 4)
 
@@ -298,7 +333,7 @@ function ShopController.init(_self: any)
 		Enabled = false,
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
-		DisplayOrder = 15,
+		DisplayOrder = Layers.Shop,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	}, { dim :: Instance, panel }) :: ScreenGui
 

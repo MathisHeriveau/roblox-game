@@ -313,7 +313,7 @@ function BaseBuilder.build(plot: BaseLayout.Plot, parent: Instance): PlotRefs
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Transparency = 1
-	spawn.Size = Vector3.new(5, 1, 5)
+	spawn.Size = Vector3.new(plot.spawnSize, 1, plot.spawnSize)
 	spawn.CFrame = CFrame.new(spawnX, FLOOR_TOP + 0.5, spawnZ) * CFrame.Angles(0, plot.yaw + math.pi, 0)
 	spawn.Parent = model
 
