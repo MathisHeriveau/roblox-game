@@ -8,6 +8,8 @@ local Debris = game:GetService("Debris")
 local SoundService = game:GetService("SoundService")
 local Workspace = game:GetService("Workspace")
 
+local Settings = require(script.Parent.Parent.Settings)
+
 local Sfx = {
 	IMPACT = "rbxasset://sounds/impact_explosion_03.mp3",
 	PICKUP = "rbxasset://sounds/action_jump_land.mp3",
@@ -16,7 +18,15 @@ local Sfx = {
 	HURT = "rbxasset://sounds/ouch.ogg",
 }
 
+-- Sound effects can be muted in ⚙️ Settings.
+local function muted(): boolean
+	return not Settings.get("sounds")
+end
+
 function Sfx.play(soundId: string, volume: number?)
+	if muted() then
+		return
+	end
 	local sound = Instance.new("Sound")
 	sound.SoundId = soundId
 	sound.Volume = volume or 0.5
@@ -26,6 +36,9 @@ function Sfx.play(soundId: string, volume: number?)
 end
 
 function Sfx.playAt(soundId: string, position: Vector3, volume: number?)
+	if muted() then
+		return
+	end
 	local holder = Instance.new("Part")
 	holder.Name = "SoundEmitter"
 	holder.Anchored = true

@@ -17,6 +17,7 @@ local Format = require(game:GetService("ReplicatedStorage").Shared.Game.Format)
 local Layers = require(script.Parent.Parent.UI.Layers)
 local PromptFilter = require(script.Parent.Parent.Bases.PromptFilter)
 local Theme = require(script.Parent.Parent.UI.Theme)
+local TitleController = require(script.Parent.TitleController)
 
 local BaseController = {
 	name = "BaseController",
@@ -132,6 +133,7 @@ function BaseController.init(_self: any)
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets,
 	}, { scale :: Instance, pill }) :: ScreenGui
+	TitleController.hideWhileShowing(gui)
 end
 
 function BaseController.start(_self: any)

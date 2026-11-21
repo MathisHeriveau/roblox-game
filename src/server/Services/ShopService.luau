@@ -34,7 +34,7 @@ local function successMessage(kind: string, id: string?, levels: { [string]: num
 		local zone = Zones.byKey(id) :: Zones.Zone
 		return `{zone.icon} {zone.name} unlocked!`
 	end
-	return `🌟 Rebirth #{rebirths}! Your income is now x{Economy.multiplier(rebirths)}`
+	return `🌟 Rebirth #{rebirths}! Permanent bonus: +{math.floor(Economy.multiplier(rebirths) * 100 - 100)}% income`
 end
 
 function ShopService.purchase(player: Player, kind: string, id: string?): PurchaseResult

@@ -17,6 +17,8 @@ local Theme = {
 		BlueDark = Color3.fromRGB(18, 98, 226),
 		Purple = Color3.fromRGB(150, 92, 255),
 		PurpleDark = Color3.fromRGB(86, 40, 196),
+		Navy = Color3.fromRGB(70, 78, 170),
+		NavyDark = Color3.fromRGB(30, 30, 96),
 		Green = Color3.fromRGB(70, 226, 120),
 		GreenDark = Color3.fromRGB(24, 160, 84),
 		Red = Color3.fromRGB(255, 84, 96),
@@ -66,6 +68,24 @@ function Theme.gradient(target: GuiObject, top: Color3, bottom: Color3): UIGradi
 	gradient.Rotation = 90
 	gradient.Parent = target
 	return gradient
+end
+
+-- Candy shine: a soft white highlight over the top half of a button.
+function Theme.gloss(target: GuiObject, radius: number?): Frame
+	local shine = Instance.new("Frame")
+	shine.Name = "Gloss"
+	shine.AnchorPoint = Vector2.new(0.5, 0)
+	shine.Position = UDim2.fromScale(0.5, 0.06)
+	shine.Size = UDim2.fromScale(0.86, 0.42)
+	shine.BackgroundColor3 = Color3.new(1, 1, 1)
+	shine.BackgroundTransparency = 0.72
+	shine.BorderSizePixel = 0
+	shine.ZIndex = target.ZIndex
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = if radius then UDim.new(0, radius) else UDim.new(1, 0)
+	corner.Parent = shine
+	shine.Parent = target
+	return shine
 end
 
 function Theme.padding(target: GuiObject, pixels: number)

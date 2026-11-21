@@ -24,6 +24,31 @@ function PlayerRecords.legacyV2(): any
 	}
 end
 
+-- A record written by schema v3 (before the Starling Index and daily rewards existed).
+function PlayerRecords.legacyV3(): any
+	return {
+		schemaVersion = 3,
+		data = {
+			coins = 5000,
+			vault = 12,
+			xp = 300,
+			rebirths = 1,
+			zoneTier = 2,
+			upgrades = { speed = 1, carry = 0, magnet = 2, slots = 0 },
+			starlings = { { rarity = 2, shiny = false }, { rarity = 4, shiny = true }, { rarity = 2, shiny = false } },
+			lastSeen = 1700000000,
+			stats = {
+				collectiblesCollected = 3,
+				sessions = 9,
+				shardsDelivered = 40,
+				bumpsLanded = 2,
+				cometsCaught = 1,
+			},
+		},
+		updatedAt = 1700000000,
+	}
+end
+
 -- A record written by a newer server (rolling update) — must never be loaded or overwritten.
 function PlayerRecords.futureVersion(): any
 	return {

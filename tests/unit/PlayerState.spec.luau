@@ -25,6 +25,10 @@ local function valid(): { [string]: any }
 		shardsDelivered = 0,
 		bumpsLanded = 0,
 		cometsCaught = 0,
+		discovered = { "r1" },
+		indexCount = 1,
+		dailyNextClaimAt = 0,
+		dailyNextDay = 1,
 	}
 end
 
@@ -46,6 +50,12 @@ return function()
 			local noUpgrades = valid()
 			noUpgrades.upgrades = 5
 			expect(PlayerStateTypes.isPlayerState(noUpgrades)).to.equal(false)
+			local noIndex = valid()
+			noIndex.discovered = nil
+			expect(PlayerStateTypes.isPlayerState(noIndex)).to.equal(false)
+			local noDaily = valid()
+			noDaily.dailyNextClaimAt = "soon"
+			expect(PlayerStateTypes.isPlayerState(noDaily)).to.equal(false)
 		end)
 	end)
 end

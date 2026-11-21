@@ -104,3 +104,13 @@ forces delegation, which is slower and costlier for small edits.
 orchestration protocol; `orchestrator` is available for full delegation mode; `/feature` runs the
 complete pipeline. All agents pin `claude-opus-5-5` with `effort: xhigh` (per project brief).
 **Consequences.** Quality first; to reduce usage, lower `effort` in implementer agents to `high`.
+
+## ADR-010 — Starling models built in shared code
+
+**Context.** The 🐾 Starling Index shows every Starling as a 3D model (ViewportFrames), with
+silhouettes for the ones not found yet, so the client needs the exact models the server builds.
+**Decision.** `StarlingBuilder` moves from `Server/Systems/Base` to `Shared/Game`. It is pure
+Instance construction from `Rarities` with nothing secret in it. Index copies are untagged so
+`AmbientController` does not animate them.
+**Consequences.** One model definition for the world, the Index and `make preview-models`. The
+builder is public code from now on: it must stay free of server-only logic.

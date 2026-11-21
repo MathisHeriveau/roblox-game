@@ -18,6 +18,7 @@ Lifecycle.boot({
 	require(Services.ShardService),
 	require(Services.SkyEventService),
 	require(Services.ShopService),
+	require(Services.DailyService),
 	require(Services.CharacterService),
 	require(Services.RaidService),
 	require(Services.BumpService),

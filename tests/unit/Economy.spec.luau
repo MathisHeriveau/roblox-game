@@ -18,6 +18,9 @@ local function newData(): Economy.EconomyData
 		upgrades = { speed = 0, carry = 0, magnet = 0, slots = 0 },
 		starlings = {},
 		lastSeen = 0,
+		discovered = {},
+		dailyLastClaim = 0,
+		dailyStreak = 0,
 		stats = { collectiblesCollected = 0, sessions = 0, shardsDelivered = 0, bumpsLanded = 0, cometsCaught = 0 },
 	}
 end
@@ -192,6 +195,7 @@ return function()
 		it("converts overflow into coins when the base is full", function()
 			local data = newData()
 			data.starlings = { starling(3), starling(3), starling(3), starling(3) }
+			data.discovered = { r1 = true }
 			Economy.deliver(data, { { rarity = 1, shiny = false, isComet = false } })
 			expect(#data.starlings).to.equal(4)
 			expect(data.coins).to.equal(Economy.sellValue(starling(1), 0))
@@ -201,6 +205,101 @@ return function()
 			expect(function()
 				Economy.deliver(newData(), { { rarity = 99, shiny = false, isComet = false } })
 			end).to.throw()
+		end)
+
+		it("records first discoveries in the Index and pays a one-time reward", function()
+			local data = newData()
+			local first = Economy.deliver(data, { { rarity = 3, shiny = true, isComet = false } })[1]
+			expect(first.discovered).to.equal(true)
+			expect(first.discoveryReward).to.equal(Economy.discoveryReward(3, true))
+			expect(data.discovered.r3s).to.equal(true)
+			expect(data.coins).to.equal(Economy.discoveryReward(3, true))
+			local again = Economy.deliver(data, { { rarity = 3, shiny = true, isComet = false } })[1]
+			expect(again.discovered).to.equal(nil)
+			expect(data.coins).to.equal(Economy.discoveryReward(3, true))
+			-- The plain variant is a separate entry.
+			Economy.deliver(data, { { rarity = 3, shiny = false, isComet = false } })
+			expect(Economy.indexCount(data.discovered)).to.equal(2)
+		end)
+	end)
+
+	describe("Economy Starling Index", function()
+		it("names one entry per rarity and shiny variant", function()
+			expect(Economy.indexKey(1, false)).to.equal("r1")
+			expect(Economy.indexKey(6, true)).to.equal("r6s")
+			expect(Economy.INDEX_SIZE).to.equal(Rarities.COUNT * 2)
+		end)
+
+		it("counts only discovered entries", function()
+			expect(Economy.indexCount({})).to.equal(0)
+			expect(Economy.indexCount({ r1 = true, r2s = true, r3 = false })).to.equal(2)
+		end)
+
+		it("pays at least the minimum discovery reward, more for rarer finds", function()
+			local common = Rarities.get(1).income * settings.DiscoveryRewardSeconds
+			expect(Economy.discoveryReward(1, false)).to.equal(math.max(settings.MinDiscoveryReward, common))
+			expect(Economy.discoveryReward(1, false) >= settings.MinDiscoveryReward).to.equal(true)
+			expect(Economy.discoveryReward(6, false) > Economy.discoveryReward(5, false)).to.equal(true)
+			expect(Economy.discoveryReward(4, true) > Economy.discoveryReward(4, false)).to.equal(true)
+		end)
+
+		it("adds a permanent income bonus per entry", function()
+			expect(Economy.multiplier(0, 0)).to.equal(1)
+			expect(Economy.multiplier(0)).to.equal(1)
+			expect(Economy.multiplier(0, 5)).to.be.near(1 + 5 * settings.IndexBonusPerEntry, 1e-9)
+			local data = newData()
+			data.starlings = { starling(5) }
+			local plain = Economy.baseIncome(data)
+			expect(plain).to.equal(Rarities.get(5).income)
+			data.discovered = { r1 = true, r2 = true }
+			expect(Economy.baseIncome(data)).to.equal(math.floor(plain * (1 + 2 * settings.IndexBonusPerEntry)))
+			expect(Economy.baseIncome(data) > plain).to.equal(true)
+		end)
+	end)
+
+	describe("Economy daily reward", function()
+		local DAY = 24 * 60 * 60
+		local NOW = 1800000000
+
+		it("is claimable immediately for a new player, then after the cooldown", function()
+			expect((Economy.dailyStatus(0, NOW))).to.equal(true)
+			local ready, wait = Economy.dailyStatus(NOW, NOW + 60)
+			expect(ready).to.equal(false)
+			expect(wait).to.equal(settings.DailyCooldownSeconds - 60)
+			ready, wait = Economy.dailyStatus(NOW, NOW + settings.DailyCooldownSeconds)
+			expect(ready).to.equal(true)
+			expect(wait).to.equal(0)
+		end)
+
+		it("advances the streak, wraps after the last day and resets after a missed day", function()
+			expect(Economy.nextDailyDay(0, 0, NOW)).to.equal(1)
+			expect(Economy.nextDailyDay(NOW, 3, NOW + DAY)).to.equal(4)
+			expect(Economy.nextDailyDay(NOW, settings.DailyStreakLength, NOW + DAY)).to.equal(1)
+			expect(Economy.nextDailyDay(NOW, 5, NOW + settings.DailyResetSeconds)).to.equal(1)
+		end)
+
+		it("grows with the day and the base income, with a big final day", function()
+			local day1 = Economy.dailyReward(1, 0)
+			expect(day1).to.equal(settings.DailyBaseReward)
+			expect(Economy.dailyReward(2, 0)).to.equal(day1 * 2)
+			expect(Economy.dailyReward(1, 10) > day1).to.equal(true)
+			local last = settings.DailyStreakLength
+			expect(Economy.dailyReward(last, 0)).to.equal(day1 * last * 3)
+		end)
+
+		it("claims once per cooldown and records the streak", function()
+			local data = newData()
+			local day, coins = Economy.claimDaily(data, NOW)
+			expect(day).to.equal(1)
+			expect(data.coins).to.equal(coins)
+			expect(data.dailyStreak).to.equal(1)
+			expect(data.dailyLastClaim).to.equal(NOW)
+			expect(function()
+				Economy.claimDaily(data, NOW + 10)
+			end).to.throw()
+			expect(data.coins).to.equal(coins)
+			day = Economy.claimDaily(data, NOW + DAY)
+			expect(day).to.equal(2)
 		end)
 	end)
 end

@@ -41,7 +41,7 @@ local PlayerDataService = require(Server.Services.PlayerDataService)
 local RaidRules = require(Server.Systems.Raid.RaidRules)
 local ServerConfig = require(Server.ServerConfig)
 local Signal = require(ReplicatedStorage.Shared.Utils.Signal)
-local StarlingBuilder = require(Server.Systems.Base.StarlingBuilder)
+local StarlingBuilder = require(ReplicatedStorage.Shared.Game.StarlingBuilder)
 
 type PlayerData = PlayerDataSchema.PlayerData
 
@@ -154,7 +154,7 @@ local function syncVisuals(player: Player, data: PlayerData)
 		BaseBuilder.setUnlockedSlots(refs, Economy.slots(data.upgrades.slots))
 	end
 	updatePrompts(player, data)
-	local income = Economy.incomePerSecond(data.starlings, data.rebirths)
+	local income = Economy.baseIncome(data)
 	refs.incomeLabel.Text = if income > 0 then `+{Format.compact(income)}/s` else "Bring shards home!"
 	refs.vaultLabel.Text = `💰 {Format.compact(data.vault)}`
 end
@@ -201,7 +201,7 @@ local function rootOf(player: Player): BasePart?
 end
 
 local function onLoaded(player: Player, data: PlayerData)
-	local income = Economy.incomePerSecond(data.starlings, data.rebirths)
+	local income = Economy.baseIncome(data)
 	local offline = if data.lastSeen > 0 then Economy.offlineEarnings(income, os.time() - data.lastSeen) else 0
 	if offline > 0 then
 		PlayerDataService.update(player, function(draft)
@@ -219,7 +219,7 @@ local function incomeTick()
 	for _, player in Players:GetPlayers() do
 		local data = PlayerDataService.peek(player)
 		if data then
-			local income = Economy.incomePerSecond(data.starlings, data.rebirths)
+			local income = Economy.baseIncome(data)
 			if income > 0 then
 				PlayerDataService.update(player, function(draft)
 					draft.vault += income

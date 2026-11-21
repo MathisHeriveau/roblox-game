@@ -21,6 +21,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
 
 local Economy = require(ReplicatedStorage.Shared.Game.Economy)
+local Format = require(ReplicatedStorage.Shared.Game.Format)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local Log = require(ReplicatedStorage.Shared.Utils.Log)
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
@@ -36,7 +37,7 @@ local ServerConfig = require(Server.ServerConfig)
 local ServerNet = require(Server.Systems.ServerNet)
 local ShardRules = require(Server.Systems.Shards.ShardRules)
 local ShardService = require(Server.Services.ShardService)
-local StarlingBuilder = require(Server.Systems.Base.StarlingBuilder)
+local StarlingBuilder = require(ReplicatedStorage.Shared.Game.StarlingBuilder)
 
 local raid = GameConfig.Raid
 local log = Log.scope("RaidService")
@@ -186,6 +187,15 @@ local function complete(transit: Transit, root: BasePart)
 		"rarity",
 		transit.rarity
 	)
+	local placement = placements[1]
+	if placement and placement.discovered then
+		Notifier.send(
+			transit.thief,
+			`📖 NEW in your Index: {label(transit)}! +💰{Format.compact(placement.discoveryReward or 0)} · +2% income forever`,
+			"rarity",
+			transit.rarity
+		)
+	end
 	if transit.owner.Parent == Players then
 		Notifier.send(
 			transit.owner,

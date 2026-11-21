@@ -30,7 +30,7 @@ local CFrame, Vector3 = roblox.CFrame, roblox.Vector3
 local ReplicatedStorage = runtime.game:GetService("ReplicatedStorage")
 local Server = runtime.game:GetService("ServerScriptService").Server
 local Rarities = runtime.require(ReplicatedStorage.Shared.Config.Rarities)
-local StarlingBuilder = runtime.require(Server.Systems.Base.StarlingBuilder)
+local StarlingBuilder = runtime.require(ReplicatedStorage.Shared.Game.StarlingBuilder)
 local ShardBuilder = runtime.require(Server.Systems.Shards.ShardBuilder)
 
 local TILE_W, TILE_H, LABEL_H = 240, 240, 26

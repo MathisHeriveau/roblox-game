@@ -219,6 +219,14 @@ local function deliver(player: Player, root: BasePart, maxSpeed: number, now: nu
 		local shard = delivered[index]
 		local rarity = Rarities.get(shard.rarity)
 		local label = `{if shard.shiny then "Shiny " else ""}{rarity.name} Starling`
+		if placement.discovered then
+			Notifier.send(
+				player,
+				`📖 NEW in your Index: {label}! +💰{Format.compact(placement.discoveryReward or 0)} · +2% income forever`,
+				"rarity",
+				shard.rarity
+			)
+		end
 		if placement.outcome == "placed" then
 			Notifier.send(player, `⭐ {label} joined your base!`, "rarity", shard.rarity)
 		elseif placement.outcome == "replaced" then

@@ -34,6 +34,14 @@ from their open bases, and lock your own shield before someone steals yours.
 - **Rarities**: Common, Rare, Epic, Legendary, Mythic, Cosmic, plus 4 % **Shiny** (x3 income,
   sparkles).
 - **Levels**: XP from deliveries (double for shinies).
+- **🐾 Starling Index**: 12 entries (6 rarities x shiny). Each first delivery pays a discovery
+  bonus and adds +2 % income forever (up to +24 %), kept through rebirths. Undiscovered entries
+  show as silhouettes: the collection chase.
+- **🎁 Daily gifts**: a 7-day streak (claim every 20 h, reset after 48 h), day 7 pays triple.
+  Rewards scale with income so they matter at every stage.
+- **Menus** (round icon buttons of the style sheet): ⚙️ Settings, 📊 Stats, 🎁 Gifts, 🐾 Index,
+  🏆 Top raiders of the server, 📅 Events with live countdowns. A title screen with the logo and
+  a PLAY button opens every session.
 
 ## World
 
@@ -59,6 +67,6 @@ Zone borders are organic (angular warp). The island floats: fall off and you los
 
 ## Not yet built (next milestones)
 
-Starling index (collection book), daily rewards and streaks, quests, global leaderboards
+Quests, global leaderboards
 (OrderedDataStore), Robux products (requires idempotent ProcessReceipt first), sound design
 with custom assets, mobile UX pass in Device Emulator.

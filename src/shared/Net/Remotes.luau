@@ -31,6 +31,10 @@ local definitions: { [string]: Definition } = {
 	-- Returns: ({ ok: boolean, message: string }). Prices are computed by the server only.
 	RequestPurchase = table.freeze({ kind = "Function", direction = "ClientToServer" } :: Definition),
 
+	-- Client -> server. Args: none. Returns: ({ ok: boolean, message: string }). Claims today's
+	-- daily reward; eligibility and amount are decided by the server (Economy.claimDaily).
+	ClaimDaily = table.freeze({ kind = "Function", direction = "ClientToServer" } :: Definition),
+
 	-- Client -> server. Args: none. The server picks the target (nearest valid carrier in range).
 	RequestBump = table.freeze({ kind = "Event", direction = "ClientToServer" } :: Definition),
 

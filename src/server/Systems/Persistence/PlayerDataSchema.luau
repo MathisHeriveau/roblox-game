@@ -11,7 +11,7 @@
 	  - Everything loaded is validated; invalid data is reported, never "repaired" by overwriting.
 
 	History: v1 coins only · v2 + stats · v3 Comet Raiders progression (vault, xp, rebirths, zones,
-	upgrades, Starlings, lastSeen, more stats).
+	upgrades, Starlings, lastSeen, more stats) · v4 Starling Index + daily reward streak.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -42,6 +42,11 @@ export type PlayerData = {
 	starlings: { Starling },
 	-- os.time() of the last save, for offline earnings. 0 = never saved.
 	lastSeen: number,
+	-- Starling Index: discovered rarity/shiny entries (keys from Economy.indexKey).
+	discovered: { [string]: boolean },
+	-- os.time() of the last daily reward claim (0 = never) and the current streak day.
+	dailyLastClaim: number,
+	dailyStreak: number,
 	stats: {
 		collectiblesCollected: number,
 		sessions: number,
@@ -58,7 +63,7 @@ local MAX_STARLINGS = 4 + (Upgrades.get("slots") :: Upgrades.Upgrade).maxLevel
 
 local PlayerDataSchema = {}
 
-PlayerDataSchema.VERSION = 3
+PlayerDataSchema.VERSION = 4
 PlayerDataSchema.MAX_STARLINGS = MAX_STARLINGS
 
 function PlayerDataSchema.defaults(): PlayerData
@@ -71,6 +76,9 @@ function PlayerDataSchema.defaults(): PlayerData
 		upgrades = { speed = 0, carry = 0, magnet = 0, slots = 0 },
 		starlings = {},
 		lastSeen = 0,
+		discovered = {},
+		dailyLastClaim = 0,
+		dailyStreak = 0,
 		stats = {
 			collectiblesCollected = 0,
 			sessions = 0,
@@ -117,6 +125,18 @@ local MIGRATIONS: { [number]: (data: any) -> any } = {
 		data.stats.shardsDelivered = 0
 		data.stats.bumpsLanded = 0
 		data.stats.cometsCaught = 0
+		return data
+	end,
+	-- v3 -> v4: Starling Index (Starlings already owned count as discovered) + daily streak.
+	[3] = function(data: any): any
+		data.discovered = {}
+		for _, starling in data.starlings or {} do
+			if type(starling) == "table" and type(starling.rarity) == "number" then
+				data.discovered[`r{starling.rarity}{if starling.shiny == true then "s" else ""}`] = true
+			end
+		end
+		data.dailyLastClaim = 0
+		data.dailyStreak = 0
 		return data
 	end,
 }
@@ -170,10 +190,26 @@ function PlayerDataSchema.validate(data: unknown): (boolean, string?)
 		return false, "data is not a table"
 	end
 	local record = data :: any
-	for _, field in { "coins", "vault", "xp", "rebirths", "lastSeen" } do
+	for _, field in { "coins", "vault", "xp", "rebirths", "lastSeen", "dailyLastClaim" } do
 		if not isCount(record[field]) then
 			return false, `{field} must be a non-negative safe integer`
 		end
+	end
+	if not isIntegerInRange(record.dailyStreak, 0, 7) then
+		return false, "dailyStreak must be an integer within [0, 7]"
+	end
+	if type(record.discovered) ~= "table" then
+		return false, "discovered must be a table"
+	end
+	local entries = 0
+	for key, value in record.discovered do
+		entries += 1
+		if type(key) ~= "string" or string.match(key, "^r[1-6]s?$") == nil or value ~= true then
+			return false, "discovered has an invalid entry"
+		end
+	end
+	if entries > Rarities.COUNT * 2 then
+		return false, "discovered has too many entries"
 	end
 	if not isIntegerInRange(record.zoneTier, 1, Zones.COUNT) then
 		return false, `zoneTier must be an integer within [1, {Zones.COUNT}]`

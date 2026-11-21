@@ -12,7 +12,9 @@ local Controllers = script.Controllers
 Lifecycle.boot({
 	require(Controllers.StateController),
 	require(Controllers.NotificationController),
+	require(Controllers.TitleController),
 	require(Controllers.ShopController),
+	require(Controllers.MenuController),
 	require(Controllers.HudController),
 	require(Controllers.BaseController),
 	require(Controllers.HomeGuideController),

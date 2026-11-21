@@ -18,12 +18,14 @@ local Create = require(script.Parent.Parent.UI.Create)
 local Economy = require(ReplicatedStorage.Shared.Game.Economy)
 local Format = require(ReplicatedStorage.Shared.Game.Format)
 local Layers = require(script.Parent.Parent.UI.Layers)
+local Modal = require(script.Parent.Parent.UI.Modal)
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
 local Sfx = require(script.Parent.Parent.Effects.Sfx)
 local ShopCard = require(script.Parent.Parent.UI.Components.ShopCard)
 local StateController = require(script.Parent.StateController)
 local Theme = require(script.Parent.Parent.UI.Theme)
+local TitleController = require(script.Parent.TitleController)
 local Upgrades = require(ReplicatedStorage.Shared.Config.Upgrades)
 local Zones = require(ReplicatedStorage.Shared.Config.Zones)
 
@@ -136,7 +138,7 @@ local function zoneView(zone: Zones.Zone): (PlayerState) -> ShopCard.CardView
 end
 
 local function rebirthView(state: PlayerState): ShopCard.CardView
-	local nextMultiplier = Economy.multiplier(state.rebirths + 1)
+	local nextMultiplier = Economy.multiplier(state.rebirths + 1, state.indexCount)
 	local lastZone = Zones.get(Zones.COUNT)
 	if state.zoneTier < Zones.COUNT then
 		return {
@@ -227,12 +229,14 @@ end
 
 function ShopController.open()
 	render(StateController.get())
+	Modal.opened("Shop", ShopController.close)
 	gui.Enabled = true
 end
 
 function ShopController.close()
 	gui.Enabled = false
 	status.Visible = false
+	Modal.closed("Shop")
 end
 
 function ShopController.toggle()
@@ -378,7 +382,7 @@ function ShopController.start(_self: any)
 		end
 	end)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
-		if processed then
+		if processed or TitleController.isShowing() then
 			return
 		end
 		if input.KeyCode == Enum.KeyCode.B then

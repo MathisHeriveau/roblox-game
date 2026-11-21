@@ -45,6 +45,34 @@ return function()
 			expect(data.vault).to.equal(0)
 		end)
 
+		it("migrates v3 records to v4: owned Starlings fill the Index, daily streak starts fresh", function()
+			local data = migrated(PlayerRecords.legacyV3())
+			expect(data.coins).to.equal(5000)
+			expect(data.rebirths).to.equal(1)
+			expect(#data.starlings).to.equal(3)
+			expect(data.discovered.r2).to.equal(true)
+			expect(data.discovered.r4s).to.equal(true)
+			expect(data.discovered.r4).to.equal(nil)
+			expect(data.dailyLastClaim).to.equal(0)
+			expect(data.dailyStreak).to.equal(0)
+		end)
+
+		it("rejects malformed Index and daily fields", function()
+			local data = PlayerDataSchema.defaults()
+			data.discovered = { r7 = true }
+			expect((PlayerDataSchema.validate(data))).to.equal(false)
+			data.discovered = { r1 = "yes" :: any }
+			expect((PlayerDataSchema.validate(data))).to.equal(false)
+			data.discovered = { [1] = true } :: any
+			expect((PlayerDataSchema.validate(data))).to.equal(false)
+			data = PlayerDataSchema.defaults()
+			data.dailyStreak = 8
+			expect((PlayerDataSchema.validate(data))).to.equal(false)
+			data = PlayerDataSchema.defaults()
+			data.dailyLastClaim = -1
+			expect((PlayerDataSchema.validate(data))).to.equal(false)
+		end)
+
 		it("never mutates the input while migrating", function()
 			local record = PlayerRecords.legacyV1()
 			PlayerDataSchema.migrate(record.data, record.schemaVersion)

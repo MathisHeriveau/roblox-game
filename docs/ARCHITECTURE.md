@@ -47,6 +47,7 @@ Server (src/server/init.server.luau)
   ShardService        Workspace.Shards; pickup / carry / drop / deliver loop (10 Hz)
   SkyEventService     initial shards, meteor showers, comets (Workspace attributes for countdowns)
   ShopService         RequestPurchase: upgrades, zone unlocks, rebirth
+  DailyService        ClaimDaily: 7-day daily gift streak (amounts scale with income)
   CharacterService    WalkSpeed = Speed upgrade x carry slowdown x modifiers
   RaidService         steal Starlings from open bases, carry them home, recover on bump/death
   BumpService         RequestBump: nearest valid carrier drops a shard + knockback
@@ -57,8 +58,12 @@ Server (src/server/init.server.luau)
 Client (src/client/init.client.luau)
   StateController        local copy of PlayerState (signal `changed`)
   NotificationController toasts + raid alarm flash
+  TitleController        title screen (logo, PLAY, camera orbit); hides registered GUIs until PLAY
   ShopController         shop modal (B key, HUD buttons)
-  HudController          coins, level, carry pill, buttons, top-centre banner column, zone banner
+  MenuController         round icon rail ⚙️📊🎁 / 🐾🏆📅 and their panels (Settings, Stats, Gifts,
+                         Starling Index with 3D ViewportFrames, Top raiders, Events)
+  HudController          coins, star level badge, carry pill, SHOP/REBIRTH pills with "!" badges,
+                         top-centre banner column, zone banner
   BaseController         own plot, prompt filtering, base lock pill
   HomeGuideController    golden beam to your base while carrying
   SkyEventController     meteor/comet visuals, countdowns, comet banner (mounted in the HUD column)
@@ -94,13 +99,13 @@ The island is built during `init()` so terrain, plots and spawns exist before an
 | `Systems/Map/MapLayout` | Pure, seeded island: tiles (hub, 3 mainland zones, sky islands), lava pools, props, landmarks, jump pads with precomputed `velocity` + `flightTime`, shard landing candidates. |
 | `Systems/Map/MapBuilder` | Layout → smooth Terrain (through an injected `TerrainWriter`) + Parts (props, landmarks, pads, bounds, plaza spawn). Compensates the engine's terrain surface offset (below). |
 | `Systems/Base/BaseLayout` | Pure plot geometry: ring around the hub, entrance facing the centre, 12 pedestals, collect pad, spawn clear of the pad. |
-| `Systems/Base/BaseBuilder`, `StarlingBuilder` | Plot Instances (floor, fence, pedestals with Steal prompts, collect pad, sign, lock console, shield dome, SpawnLocation); Starling models from Parts. |
+| `Systems/Base/BaseBuilder` | Plot Instances (floor, fence, pedestals with Steal prompts, collect pad, sign, lock console, shield dome, SpawnLocation). |
 | `Systems/Base/CollectPadRules` | Pure: the vault is banked once per visit to the pad. |
 | `Systems/Shards/ShardRules` | Pure anti-exploit rules: pickup (distance, zone lock, capacity, drop protection), plausible delivery (anti-teleport), bump target and cooldown. |
 | `Systems/Shards/SkySchedule`, `ShardBuilder` | Pure meteor/comet scheduling (counts, tiles, rarities) on an injected Prng; shard and comet core models. |
 | `Systems/Raid/RaidRules` | Pure raid decisions: who can steal from whom (locks, beginner protection, busy, distance), base locks. |
 | `Systems/Hazards/HazardRules` | Pure: `safe` / `lava` / `void` for a character root height and the tile under it. |
-| `Systems/Persistence/*` | `PlayerDataSchema` (v3, migrations, validation), `StoreTypes`, `RobloxDataStore`, `InMemoryStore`, session-locked `SessionStore`. |
+| `Systems/Persistence/*` | `PlayerDataSchema` (v4, migrations, validation), `StoreTypes`, `RobloxDataStore`, `InMemoryStore`, session-locked `SessionStore`. |
 | `Services/*` | The engine glue listed in the boot sequence. Each header documents its public API. |
 
 ### Client (`StarterPlayerScripts.Client`)
@@ -108,8 +113,10 @@ The island is built during `init()` so terrain, plots and spawns exist before an
 | Module | Responsibility |
 |---|---|
 | `Controllers/*` | The glue listed in the boot sequence. |
-| `UI/Create`, `UI/Theme`, `UI/Layers` | Declarative Instance factory; art style helpers and `scaleFor(viewport)`; one table of ScreenGui `DisplayOrder`s (HUD < base status < toasts < shop). |
-| `UI/Components/*` | `CoinPill`, `LevelBadge`, `CarryIndicator`, `IconButton`, `ShopCard`, `Toast`, `EventBanner` (countdowns + comet banner), `ZoneBanner`. Pure Instance construction, tested headlessly. |
+| `UI/Create`, `UI/Theme`, `UI/Layers`, `UI/Modal` | Declarative Instance factory; art style helpers (candy gradient, gloss) and `scaleFor(viewport)`; one table of ScreenGui `DisplayOrder`s (HUD < base status < toasts < panels = shop < title); at most one modal open at a time. |
+| `UI/Components/*` | `CoinPill`, `LevelBadge` (star), `CarryIndicator`, `PillButton` (wide candy button), `RoundButton` (round icon button), `Panel` (modal window; `Panel.connect` wires its clicks), `Logo`, `ShopCard`, `Toast`, `EventBanner` (countdowns + comet banner), `ZoneBanner`. Pure Instance construction, tested headlessly. |
+| `Menu/MenuViews` | Pure view models of the menu panels (Index, Daily, Stats, Leaderboard, Events). |
+| `Settings` | Local per-session toggles (sounds, effects, guide beam) read by `Sfx`, `Vfx`, `HomeGuideController`. |
 | `Hud/ZoneAnnouncer` | Pure: which zone changes get the zone banner (never the zone you spawn in) and its texts. |
 | `Hud/CometTracker` | Pure: comet banner state from the warning until a few seconds after the crash. |
 | `Bases/PromptFilter` | Hides Steal/Lock prompts locally without losing the server's `Enabled` value. |
@@ -138,6 +145,12 @@ The island is built during `init()` so terrain, plots and spawns exist before an
   (respawn at your plot).
 - **Progression**: `ShopService` sells upgrades, the next zone and rebirth (needs the last zone;
   resets coins, vault, zones, upgrades and Starlings for a permanent income multiplier).
+- **Starling Index**: the first delivery of each rarity x shiny variant (12 entries) records it
+  in `discovered`, pays a one-time discovery reward and adds +2 % income forever
+  (`Economy.multiplier(rebirths, indexCount)`; survives rebirths). `Economy.baseIncome(data)` is
+  the single income formula for the sign, the vault tick and offline earnings.
+- **Daily gifts**: `DailyService` lets a player claim once per 20 h; the streak goes up to day 7
+  (triple reward) and resets after 48 h without a claim. Rewards scale with base income.
 
 ## Networking
 
@@ -146,6 +159,7 @@ The island is built during `init()` so terrain, plots and spawns exist before an
 | `PlayerStateChanged` | Event | Server → client | server-built projection | coalesced, ≥ 0.2 s apart |
 | `GetPlayerState` | Function | Client → server | `Guard.tuple()` (no arguments) | 5 burst, 1/s |
 | `RequestPurchase` | Function | Client → server | `kind ∈ {upgrade, zone, rebirth}`, `id?` letters only, ≤ 16 chars | 8 burst, 3/s |
+| `ClaimDaily` | Function | Client → server | `Guard.tuple()` (server decides eligibility and amount) | 3 burst, 0.2/s |
 | `RequestBump` | Event | Client → server | `Guard.tuple()` (server picks the target) | 3 burst, 1/s |
 | `Notify` | Event | Server → client | client checks types and length | n/a |
 | `WorldEvent` | Event | Server → client(s) | cosmetic only (`meteors`, `cometWarning`, `cometImpact`, `raid`, `bump`) | n/a |
@@ -161,7 +175,8 @@ locks and distance on the server.
 | `Workspace` | `NextMeteorAt`, `NextCometAt`, `CometZone` (server time) | countdowns |
 | `Workspace.Bases.Plot<n>` | `PlotIndex`, `OwnerUserId`, `LockedUntil` | BaseController (own plot, lock pill) |
 | Shards (tag `Shard`, crystals `ShardCrystal`) | `ShardId`, `Rarity`, `Shiny`, `Tier`, `IsComet`, `HolderUserId` | AmbientController (spin, 🔒 badges) |
-| Starlings (tag `Starling`) | — | AmbientController (bobbing) |
+| Starlings (tag `Starling`, built by `Shared/Game/StarlingBuilder`) | — | AmbientController (bobbing); the Index builds untagged copies in ViewportFrames |
+| `Player.leaderstats` | `Coins`, `Level`, `Rebirths` | player list, 🏆 Top panel |
 | Jump pads (tag `JumpPad`) | `LaunchVelocity`, `FlightTime`, `Island`, `Kind` | JumpPadController |
 | `Workspace.Map` | `Seed` | tests, debugging |
 
@@ -173,9 +188,11 @@ Record per key `player_<UserId>` in DataStore `PlayerData_v1`:
 { schemaVersion: number, data: PlayerData, session: { jobId, lockedAt }?, updatedAt: number }
 ```
 
-Schema **v3**: `coins, vault, xp, rebirths, zoneTier, upgrades { speed, carry, magnet, slots },
-starlings { rarity, shiny }[], lastSeen, stats { collectiblesCollected, sessions,
-shardsDelivered, bumpsLanded, cometsCaught }` (migrations v1 → v2 → v3 kept).
+Schema **v4**: `coins, vault, xp, rebirths, zoneTier, upgrades { speed, carry, magnet, slots },
+starlings { rarity, shiny }[], lastSeen, discovered { [r1..r6 / r1s..r6s]: true },
+dailyLastClaim, dailyStreak, stats { collectiblesCollected, sessions, shardsDelivered,
+bumpsLanded, cometsCaught }` (migrations v1 → v2 → v3 → v4 kept; v3 → v4 counts owned Starlings
+as discovered).
 
 - **Load** (UpdateAsync): refuse while another live server holds the lock (retry with backoff,
   then kick); take over locks older than 30 min; migrate; refuse corrupt or newer-schema data
@@ -210,6 +227,9 @@ Details: [`TESTING.md`](TESTING.md).
 - New system → `roblox-system` skill. New remote → `multiplayer-feature` skill. New persisted
   field → `persistence` skill. New UI → `ui-component` skill. Map generation →
   `procedural-map` skill (and look at `make preview` plus in-engine captures).
-- New ScreenGui → add its layer to `UI/Layers`. New top-centre banner → `HudController.mountTop`.
+- New ScreenGui → add its layer to `UI/Layers` and call `TitleController.hideWhileShowing` if it
+  must stay hidden behind the title screen. New modal → `UI/Components/Panel` (one at a time via
+  `UI/Modal`). New menu panel → a builder in `MenuController` + a pure view in `MenuViews`.
+  New top-centre banner → `HudController.mountTop`.
 - Third-party runtime libraries go in `wally.toml [dependencies]` → `ReplicatedStorage.Packages`
   (requires an ADR in [`DECISIONS.md`](DECISIONS.md)).

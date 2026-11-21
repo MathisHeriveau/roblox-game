@@ -41,6 +41,10 @@ export type EconomyData = {
 	upgrades: UpgradeLevels,
 	starlings: { Starling },
 	lastSeen: number,
+	-- Starling Index: discovered entries keyed by Economy.indexKey.
+	discovered: { [string]: boolean },
+	dailyLastClaim: number,
+	dailyStreak: number,
 	stats: {
 		collectiblesCollected: number,
 		sessions: number,
@@ -60,6 +64,9 @@ export type Placement = {
 	-- Coins earned from selling the Starling that did not fit (new one or replaced one).
 	soldValue: number,
 	sold: Starling?,
+	-- Set by Economy.deliver: first time this rarity/shiny combination is delivered.
+	discovered: boolean?,
+	discoveryReward: number?,
 }
 
 local Economy = {}
@@ -119,8 +126,9 @@ end
 -- Income
 --------------------------------------------------------------------------------------------------
 
-function Economy.multiplier(rebirths: number): number
-	return 1 + settings.RebirthBonus * rebirths
+-- Permanent income multiplier: rebirths and Starling Index entries.
+function Economy.multiplier(rebirths: number, indexCount: number?): number
+	return 1 + settings.RebirthBonus * rebirths + settings.IndexBonusPerEntry * (indexCount or 0)
 end
 
 function Economy.starlingIncome(starling: Starling): number
@@ -129,12 +137,82 @@ function Economy.starlingIncome(starling: Starling): number
 end
 
 -- Whole coins per second produced by a base (fractions are dropped: data stores integers).
-function Economy.incomePerSecond(starlings: { Starling }, rebirths: number): number
+function Economy.incomePerSecond(starlings: { Starling }, rebirths: number, indexCount: number?): number
 	local total = 0
 	for _, starling in starlings do
 		total += Economy.starlingIncome(starling)
 	end
-	return math.floor(total * Economy.multiplier(rebirths))
+	return math.floor(total * Economy.multiplier(rebirths, indexCount))
+end
+
+--------------------------------------------------------------------------------------------------
+-- Starling Index (collection)
+--------------------------------------------------------------------------------------------------
+
+Economy.INDEX_SIZE = Rarities.COUNT * 2
+
+function Economy.indexKey(rarityId: number, shiny: boolean): string
+	return `r{rarityId}{if shiny then "s" else ""}`
+end
+
+function Economy.indexCount(discovered: { [string]: boolean }): number
+	local count = 0
+	for _, found in discovered do
+		if found then
+			count += 1
+		end
+	end
+	return count
+end
+
+function Economy.discoveryReward(rarityId: number, shiny: boolean): number
+	local income = Economy.starlingIncome({ rarity = rarityId, shiny = shiny })
+	return math.max(settings.MinDiscoveryReward, income * settings.DiscoveryRewardSeconds)
+end
+
+-- Income of a player's base, Index bonus included (use this everywhere income is shown or paid).
+function Economy.baseIncome(data: EconomyData): number
+	return Economy.incomePerSecond(data.starlings, data.rebirths, Economy.indexCount(data.discovered))
+end
+
+--------------------------------------------------------------------------------------------------
+-- Daily reward
+--------------------------------------------------------------------------------------------------
+
+-- Returns (canClaim, secondsUntilClaimable).
+function Economy.dailyStatus(lastClaim: number, now: number): (boolean, number)
+	if lastClaim <= 0 then
+		return true, 0
+	end
+	local wait = lastClaim + settings.DailyCooldownSeconds - now
+	return wait <= 0, math.max(0, wait)
+end
+
+-- The streak day (1..DailyStreakLength) the next claim would be.
+function Economy.nextDailyDay(lastClaim: number, streak: number, now: number): number
+	if lastClaim <= 0 or now - lastClaim >= settings.DailyResetSeconds or streak >= settings.DailyStreakLength then
+		return 1
+	end
+	return streak + 1
+end
+
+function Economy.dailyReward(day: number, incomePerSecond: number): number
+	local bonus = if day == settings.DailyStreakLength then 3 else 1
+	return math.floor((settings.DailyBaseReward + incomePerSecond * settings.DailyIncomeSeconds) * day * bonus)
+end
+
+-- Applies a daily claim (inside an update mutator). Errors when not claimable. Returns (day, coins).
+function Economy.claimDaily(data: EconomyData, now: number): (number, number)
+	local ok = Economy.dailyStatus(data.dailyLastClaim, now)
+	if not ok then
+		error("Economy: daily reward not ready")
+	end
+	local day = Economy.nextDailyDay(data.dailyLastClaim, data.dailyStreak, now)
+	local coins = Economy.dailyReward(day, Economy.baseIncome(data))
+	data.coins += coins
+	data.dailyStreak = day
+	data.dailyLastClaim = now
+	return day, coins
 end
 
 function Economy.sellValue(starling: Starling, rebirths: number): number
@@ -344,6 +422,14 @@ function Economy.deliver(data: EconomyData, shards: { DeliveredShard }): { Place
 		)
 		data.starlings = placement.starlings
 		data.coins += placement.soldValue
+		local key = Economy.indexKey(shard.rarity, shard.shiny)
+		if not data.discovered[key] then
+			data.discovered[key] = true
+			local reward = Economy.discoveryReward(shard.rarity, shard.shiny)
+			data.coins += reward
+			placement.discovered = true
+			placement.discoveryReward = reward
+		end
 		data.xp += Economy.xpForDelivery(shard.rarity, shard.shiny)
 		data.stats.shardsDelivered += 1
 		if shard.isComet then

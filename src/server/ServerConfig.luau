@@ -32,6 +32,7 @@ local ServerConfig = {
 		GetPlayerStateRateLimit = table.freeze({ capacity = 5, refillPerSecond = 1 } :: RateLimiter.Options),
 		RequestPurchaseRateLimit = table.freeze({ capacity = 8, refillPerSecond = 3 } :: RateLimiter.Options),
 		RequestBumpRateLimit = table.freeze({ capacity = 3, refillPerSecond = 1 } :: RateLimiter.Options),
+		ClaimDailyRateLimit = table.freeze({ capacity = 3, refillPerSecond = 0.2 } :: RateLimiter.Options),
 		-- Minimum seconds between two PlayerState pushes to the same client (coalescing).
 		StatePushIntervalSeconds = 0.2,
 	}),

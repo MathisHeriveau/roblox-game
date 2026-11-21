@@ -33,6 +33,12 @@ export type PlayerState = {
 	shardsDelivered: number,
 	bumpsLanded: number,
 	cometsCaught: number,
+	-- Starling Index: discovered entry keys (Economy.indexKey) and their count.
+	discovered: { string },
+	indexCount: number,
+	-- Daily reward: unix time when the next claim opens (0 = now) and the day it would be.
+	dailyNextClaimAt: number,
+	dailyNextDay: number,
 }
 
 local PlayerStateTypes = {}
@@ -53,6 +59,9 @@ local NUMBER_FIELDS = {
 	"capacity",
 	"starlings",
 	"slots",
+	"indexCount",
+	"dailyNextClaimAt",
+	"dailyNextDay",
 }
 
 -- Shape check for payloads received over the network (the client treats them as untrusted).
@@ -67,7 +76,7 @@ function PlayerStateTypes.isPlayerState(value: unknown): boolean
 			return false
 		end
 	end
-	return type(state.upgrades) == "table"
+	return type(state.upgrades) == "table" and type(state.discovered) == "table"
 end
 
 return table.freeze(PlayerStateTypes)

@@ -1,7 +1,8 @@
 --!strict
 --[[
-	HudController — the always-visible HUD: coins & income, level & XP, carried shards, the Shop /
-	Rebirth buttons and the zone banner shown when walking into another zone.
+	HudController — the always-visible HUD: coins & income, the star level badge & XP, carried
+	shards, the candy SHOP / REBIRTH buttons ("!" when something is affordable) and the zone banner
+	shown when walking into another zone. Hidden behind the title screen until PLAY.
 
 	Owns the top-centre column, a vertical stack where other controllers mount their banners
 	(`HudController.mountTop(item, HudController.TopSlot.X)`, from their init()): sky event
@@ -19,13 +20,16 @@ local Workspace = game:GetService("Workspace")
 local CarryIndicator = require(script.Parent.Parent.UI.Components.CarryIndicator)
 local CoinPill = require(script.Parent.Parent.UI.Components.CoinPill)
 local Create = require(script.Parent.Parent.UI.Create)
-local IconButton = require(script.Parent.Parent.UI.Components.IconButton)
+local Economy = require(ReplicatedStorage.Shared.Game.Economy)
 local Layers = require(script.Parent.Parent.UI.Layers)
 local LevelBadge = require(script.Parent.Parent.UI.Components.LevelBadge)
+local PillButton = require(script.Parent.Parent.UI.Components.PillButton)
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 local ShopController = require(script.Parent.ShopController)
 local StateController = require(script.Parent.StateController)
 local Theme = require(script.Parent.Parent.UI.Theme)
+local TitleController = require(script.Parent.TitleController)
+local Upgrades = require(ReplicatedStorage.Shared.Config.Upgrades)
 local ZoneAnnouncer = require(script.Parent.Parent.Hud.ZoneAnnouncer)
 local ZoneBanner = require(script.Parent.Parent.UI.Components.ZoneBanner)
 local Zones = require(ReplicatedStorage.Shared.Config.Zones)
@@ -50,8 +54,8 @@ local scale: UIScale
 local coinPill: CoinPill.CoinPill
 local levelBadge: LevelBadge.LevelBadge
 local carry: CarryIndicator.CarryIndicator
-local shopButton: IconButton.IconButton
-local rebirthButton: IconButton.IconButton
+local shopButton: PillButton.PillButton
+local rebirthButton: PillButton.PillButton
 local topCenter: Frame? = nil
 local zoneBanner: ZoneBanner.ZoneBanner
 local zoneFade: NumberValue
@@ -63,6 +67,22 @@ local function render(state: PlayerState)
 	coinPill.setIncome(state.incomePerSecond, state.vault)
 	levelBadge.setLevel(state.level, state.levelProgress, state.levelGoal)
 	carry.setCarry(state.carrying, state.capacity, state.carryingStarling)
+	-- "!" bubbles: an affordable upgrade or next zone, a rebirth within reach.
+	local affordable = false
+	for _, upgrade in Upgrades.list do
+		local level = (state.upgrades :: any)[upgrade.id]
+		local cost = if type(level) == "number" then Economy.upgradeCost(upgrade.id, level) else nil
+		if cost ~= nil and cost <= state.coins then
+			affordable = true
+			break
+		end
+	end
+	local nextZone = state.zoneTier < Zones.COUNT and Zones.get(state.zoneTier + 1) or nil
+	if nextZone and nextZone.unlockCost <= state.coins then
+		affordable = true
+	end
+	shopButton.setBadge(affordable)
+	rebirthButton.setBadge(state.coins >= state.rebirthCost)
 end
 
 local function showZone(tier: number)
@@ -119,9 +139,9 @@ function HudController.init(_self: any)
 	levelBadge.root.Position = UDim2.fromOffset(0, 96)
 	carry = CarryIndicator.new()
 	carry.root.Position = UDim2.new(0.5, 0, 1, -16)
-	shopButton = IconButton.new("🛒", "SHOP", Theme.Color.Blue, Theme.Color.BlueDark)
+	shopButton = PillButton.new("🛒", "SHOP", Theme.Color.Blue, Theme.Color.BlueDark, Vector2.new(196, 66))
 	shopButton.root.LayoutOrder = 1
-	rebirthButton = IconButton.new("🌟", "REBIRTH", Theme.Color.Purple, Theme.Color.PurpleDark)
+	rebirthButton = PillButton.new("🌟", "REBIRTH", Theme.Color.Purple, Theme.Color.PurpleDark, Vector2.new(196, 66))
 	rebirthButton.root.LayoutOrder = 2
 
 	local topLeft = Create("Frame", {
@@ -136,12 +156,12 @@ function HudController.init(_self: any)
 		BackgroundTransparency = 1,
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -20, 0.5, 0),
-		Size = UDim2.fromOffset(80, 220),
+		Size = UDim2.fromOffset(200, 150),
 	}, {
 		Create("UIListLayout", {
 			SortOrder = Enum.SortOrder.LayoutOrder,
-			Padding = UDim.new(0, 12),
-			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			Padding = UDim.new(0, 14),
+			HorizontalAlignment = Enum.HorizontalAlignment.Right,
 		}),
 		shopButton.root,
 		rebirthButton.root,
@@ -177,6 +197,7 @@ function HudController.init(_self: any)
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets,
 	}, { scale :: Instance, topLeft, right, carry.root, column }) :: ScreenGui
+	TitleController.hideWhileShowing(gui)
 end
 
 function HudController.start(_self: any)
@@ -191,8 +212,8 @@ function HudController.start(_self: any)
 	end
 
 	coinPill.plusButton.Activated:Connect(ShopController.open)
-	shopButton.button.Activated:Connect(ShopController.open)
-	rebirthButton.button.Activated:Connect(ShopController.open)
+	shopButton.root.Activated:Connect(ShopController.open)
+	rebirthButton.root.Activated:Connect(ShopController.open)
 
 	StateController.changed:connect(render)
 	local state = StateController.get()

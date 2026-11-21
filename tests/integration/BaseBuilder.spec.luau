@@ -13,7 +13,7 @@ local Systems = ServerScriptService.Server.Systems
 local BaseBuilder = require(Systems.Base.BaseBuilder)
 local BaseLayout = require(Systems.Base.BaseLayout)
 local ShardBuilder = require(Systems.Shards.ShardBuilder)
-local StarlingBuilder = require(Systems.Base.StarlingBuilder)
+local StarlingBuilder = require(ReplicatedStorage.Shared.Game.StarlingBuilder)
 
 return function()
 	describe("BaseBuilder.build", function()

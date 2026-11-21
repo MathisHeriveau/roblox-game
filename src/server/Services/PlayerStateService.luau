@@ -38,16 +38,25 @@ function PlayerStateService.toState(
 	carryingStarling: number
 ): PlayerState
 	local level, progress, goal = Economy.levelFromXp(data.xp)
+	local indexCount = Economy.indexCount(data.discovered)
+	local discovered = {}
+	for key, found in data.discovered do
+		if found then
+			table.insert(discovered, key)
+		end
+	end
+	local now = os.time()
+	local canClaim, wait = Economy.dailyStatus(data.dailyLastClaim, now)
 	return {
 		coins = data.coins,
 		vault = data.vault,
-		incomePerSecond = Economy.incomePerSecond(data.starlings, data.rebirths),
+		incomePerSecond = Economy.baseIncome(data),
 		xp = data.xp,
 		level = level,
 		levelProgress = progress,
 		levelGoal = goal,
 		rebirths = data.rebirths,
-		multiplier = Economy.multiplier(data.rebirths),
+		multiplier = Economy.multiplier(data.rebirths, indexCount),
 		rebirthCost = Economy.rebirthCost(data.rebirths),
 		zoneTier = data.zoneTier,
 		upgrades = {
@@ -64,6 +73,10 @@ function PlayerStateService.toState(
 		shardsDelivered = data.stats.shardsDelivered,
 		bumpsLanded = data.stats.bumpsLanded,
 		cometsCaught = data.stats.cometsCaught,
+		discovered = discovered,
+		indexCount = indexCount,
+		dailyNextClaimAt = if canClaim then 0 else now + wait,
+		dailyNextDay = Economy.nextDailyDay(data.dailyLastClaim, data.dailyStreak, now),
 	}
 end
 

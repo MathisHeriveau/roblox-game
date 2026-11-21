@@ -59,16 +59,28 @@ function LevelBadge.new(): LevelBadge
 	}) :: TextLabel
 	Theme.textOutline(levelText)
 
+	-- Gold star behind the level number (style sheet), drawn with the star emoji.
+	local starGlyph = Create("TextLabel", {
+		Name = "StarGlyph",
+		BackgroundTransparency = 1,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.52),
+		Size = UDim2.fromScale(1.35, 1.35),
+		Font = Theme.Font.Body,
+		Text = "⭐",
+		TextScaled = true,
+		ZIndex = 1,
+	}) :: TextLabel
+	levelText.ZIndex = 2
+	levelText.AnchorPoint = Vector2.new(0.5, 0.5)
+	levelText.Position = UDim2.fromScale(0.5, 0.56)
+	levelText.Size = UDim2.fromScale(0.62, 0.5)
 	local star = Create("Frame", {
 		Name = "Star",
-		Size = UDim2.fromOffset(50, 50),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		Rotation = 0,
-	}, { levelText }) :: Frame
-	Theme.corner(star)
-	Theme.border(star, 3)
-	Theme.gradient(star, Theme.Color.Gold, Theme.Color.GoldDark)
-	Theme.padding(star, 9)
+		Position = UDim2.fromOffset(-6, -6),
+		Size = UDim2.fromOffset(62, 62),
+		BackgroundTransparency = 1,
+	}, { starGlyph :: Instance, levelText }) :: Frame
 
 	local root = Create("Frame", {
 		Name = "LevelBadge",

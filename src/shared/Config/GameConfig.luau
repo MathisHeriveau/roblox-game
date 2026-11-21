@@ -67,6 +67,18 @@ local GameConfig = {
 		-- XP needed to go from level n to n + 1 = floor(XpBase * n ^ XpExponent).
 		XpBase = 40,
 		XpExponent = 1.5,
+		-- Starling Index: each discovered entry (rarity x shiny) adds this to the income multiplier.
+		IndexBonusPerEntry = 0.02,
+		-- Discovery reward = this many seconds of that Starling's income (at least MinDiscoveryReward).
+		DiscoveryRewardSeconds = 120,
+		MinDiscoveryReward = 50,
+		-- Daily reward: claimable every DailyCooldownSeconds; missing DailyResetSeconds resets the streak.
+		DailyCooldownSeconds = 20 * 60 * 60,
+		DailyResetSeconds = 48 * 60 * 60,
+		DailyStreakLength = 7,
+		DailyBaseReward = 150,
+		-- Each streak day also pays this many seconds of current income.
+		DailyIncomeSeconds = 45,
 	}),
 
 	Events = table.freeze({

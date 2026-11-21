@@ -2,7 +2,7 @@
 --[[
 	HomeGuideController — a glowing golden beam from the character to their own base while they
 	carry shards or a stolen Starling. Answers the #1 newcomer question: "where do I bring this?".
-	Purely local and cosmetic.
+	Purely local and cosmetic; can be turned off in ⚙️ Settings.
 ]]
 
 local Players = game:GetService("Players")
@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
+local Settings = require(script.Parent.Parent.Settings)
 local StateController = require(script.Parent.StateController)
 local Theme = require(script.Parent.Parent.UI.Theme)
 
@@ -90,7 +91,7 @@ local function show()
 end
 
 local function update(state: PlayerState?)
-	active = state ~= nil and (state.carrying > 0 or state.carryingStarling > 0)
+	active = state ~= nil and (state.carrying > 0 or state.carryingStarling > 0) and Settings.get("guide")
 	if active then
 		show()
 	else
@@ -100,6 +101,12 @@ end
 
 function HomeGuideController.init(_self: any)
 	StateController.changed:connect(update)
+	-- The beam can be switched off in ⚙️ Settings.
+	Settings.changed:connect(function(key: Settings.Key)
+		if key == "guide" then
+			update(StateController.get())
+		end
+	end)
 end
 
 function HomeGuideController.start(_self: any)

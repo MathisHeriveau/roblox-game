@@ -12,6 +12,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
+local Settings = require(script.Parent.Parent.Settings)
 local Sfx = require(script.Parent.Sfx)
 
 local METEOR_COLOR = Color3.fromRGB(255, 140, 40)
@@ -49,6 +50,9 @@ local function effectPart(props: { [string]: any }): Part
 end
 
 function Vfx.shockwave(position: Vector3, color: Color3, radius: number)
+	if not Settings.get("effects") then
+		return
+	end
 	local ring = effectPart({
 		Name = "Shockwave",
 		Shape = Enum.PartType.Cylinder,
@@ -65,6 +69,11 @@ function Vfx.shockwave(position: Vector3, color: Color3, radius: number)
 end
 
 function Vfx.impact(position: Vector3, color: Color3, scale: number)
+	-- With effects off (⚙️ Settings) the impact is still heard, just not flashed.
+	if not Settings.get("effects") then
+		Sfx.playAt(Sfx.IMPACT, position, math.min(1, 0.35 + 0.25 * scale))
+		return
+	end
 	local flash = effectPart({
 		Name = "Flash",
 		Shape = Enum.PartType.Ball,
@@ -183,7 +192,7 @@ end
 local shaking = false
 function Vfx.cameraShake(intensity: number, duration: number)
 	local camera = Workspace.CurrentCamera
-	if camera == nil or shaking then
+	if camera == nil or shaking or not Settings.get("effects") then
 		return
 	end
 	shaking = true
