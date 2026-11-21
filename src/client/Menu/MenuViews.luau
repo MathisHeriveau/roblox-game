@@ -135,7 +135,7 @@ function MenuViews.stats(state: PlayerState): { StatRow }
 	return {
 		{ icon = "⭐", label = "Level", value = tostring(state.level) },
 		{ icon = "💰", label = "Income", value = `+{Format.compact(state.incomePerSecond)}/s` },
-		{ icon = "✖️", label = "Income multiplier", value = `x{string.format("%.2f", state.multiplier)}` },
+		{ icon = "📈", label = "Income multiplier", value = `x{string.format("%.2f", state.multiplier)}` },
 		{ icon = "🐾", label = "Starling Index", value = `{state.indexCount} / {Economy.INDEX_SIZE}` },
 		{ icon = "🏠", label = "Starlings at home", value = `{state.starlings} / {state.slots}` },
 		{ icon = "🗺️", label = "Best zone", value = zone.name },

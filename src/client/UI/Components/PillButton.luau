@@ -1,8 +1,12 @@
 --!strict
 --[[
 	PillButton — the wide candy button of the style sheet ("⭐ Play", "🛒 Shop"): rounded gradient
-	pill, glossy top, dark outline, emoji icon on the left and a chunky outlined label.
+	pill, glossy top, dark outline, icon on the left and a chunky outlined label.
 	`setBadge` shows a red "!" bubble (something to claim).
+
+	Colour emoji ignore TextColor3 and UIStroke: they keep their own colours. On a pill of the same
+	colour (⭐ on gold) pass a monochrome glyph instead (★), which gets the light fill and dark
+	cartoon outline below.
 ]]
 
 local Create = require(script.Parent.Parent.Create)
@@ -20,6 +24,9 @@ export type PillButton = {
 
 local PillButton = {}
 
+-- Fill of monochrome icon glyphs (the style sheet's pale yellow star).
+local ICON_FILL = Color3.fromRGB(255, 236, 110)
+
 function PillButton.new(icon: string, text: string, top: Color3, bottom: Color3, size: Vector2?): PillButton
 	local dimensions = size or Vector2.new(190, 64)
 	local iconLabel = Create("TextLabel", {
@@ -30,9 +37,11 @@ function PillButton.new(icon: string, text: string, top: Color3, bottom: Color3,
 		Size = UDim2.fromOffset(dimensions.Y - 16, dimensions.Y - 16),
 		Font = Theme.Font.Body,
 		Text = icon,
+		TextColor3 = ICON_FILL,
 		TextScaled = true,
 		ZIndex = 3,
 	}) :: TextLabel
+	Theme.textOutline(iconLabel, 3)
 
 	local label = Create("TextLabel", {
 		Name = "Label",

@@ -85,6 +85,8 @@ end
 
 type IndexCard = {
 	viewport: ViewportFrame,
+	-- Soft glow behind undiscovered silhouettes (black on the dark card would vanish).
+	spot: Frame,
 	title: TextLabel,
 	income: TextLabel,
 	frame: Frame,
@@ -157,11 +159,26 @@ local function buildIndex(): Entry
 			Position = UDim2.fromOffset(4, 128),
 			Size = UDim2.new(1, -8, 0, 20),
 		}, 1.5)
+		local spot = Create("Frame", {
+			Name = "Spot",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0, 50),
+			Size = UDim2.fromOffset(84, 84),
+			BackgroundColor3 = Theme.Color.Purple,
+			BackgroundTransparency = 0.55,
+			ZIndex = 0,
+		}, {
+			Create("UICorner", { CornerRadius = UDim.new(1, 0) }),
+			Create("UIGradient", {
+				Rotation = 90,
+				Transparency = NumberSequence.new(0, 0.6),
+			}),
+		}) :: Frame
 		local frame = Create("Frame", {
 			Name = entry.key,
 			LayoutOrder = position,
 			BackgroundColor3 = Theme.Color.PanelDark,
-		}, { viewport :: Instance, title, income }) :: Frame
+		}, { spot :: Instance, viewport, title, income }) :: Frame
 		Theme.corner(frame, 16)
 		local stroke = Theme.border(frame, 3)
 		if entry.shiny then
@@ -174,7 +191,8 @@ local function buildIndex(): Entry
 			tag.Parent = frame
 		end
 		frame.Parent = grid
-		cards[entry.key] = { viewport = viewport, title = title, income = income, frame = frame, stroke = stroke }
+		cards[entry.key] =
+			{ viewport = viewport, spot = spot, title = title, income = income, frame = frame, stroke = stroke }
 	end
 
 	local function render()
@@ -184,6 +202,7 @@ local function buildIndex(): Entry
 			`🐾 {view.count} / {view.size} discovered  •  +{view.bonusPercent}% income forever  •  Deliver new kinds of shards to fill it!`
 		for _, entry in view.entries do
 			local card = cards[entry.key]
+			card.spot.Visible = not entry.discovered
 			if entry.discovered then
 				card.viewport.ImageColor3 = Color3.new(1, 1, 1)
 				card.viewport.ImageTransparency = 0
@@ -196,7 +215,7 @@ local function buildIndex(): Entry
 			else
 				-- Silhouette: the shape (and accessory) is a hint, not the colours.
 				card.viewport.ImageColor3 = Color3.new(0, 0, 0)
-				card.viewport.ImageTransparency = 0.25
+				card.viewport.ImageTransparency = 0.1
 				card.title.Text = "???"
 				card.title.TextColor3 = Theme.Color.TextDim
 				card.income.Text = if entry.shiny then "Find a shiny!" else "Not found yet"
@@ -298,6 +317,8 @@ local function buildDaily(): Entry
 			local card = dayCards[index]
 			card.reward.Text = `💰 {Format.compact(info.reward)}`
 			card.check.Visible = info.status == "claimed"
+			-- Gold text on the gold "next" card would blend in.
+			card.reward.TextColor3 = if info.status == "next" then Theme.Color.Text else Theme.Color.Gold
 			if info.status == "next" then
 				card.gradient.Color = ColorSequence.new(Theme.Color.Gold, Theme.Color.GoldDark)
 				card.stroke.Color = Color3.new(1, 1, 1)
@@ -571,14 +592,16 @@ local function buildSettings(): Entry
 	local toggles: { Toggle } = {}
 	for index, info in Settings.LABELS do
 		local card = Panel.card(64, index)
-		Panel.text({
+		local label = Panel.text({
 			Name = "Label",
 			Position = UDim2.fromOffset(16, 16),
 			Size = UDim2.new(1, -170, 0, 32),
 			Text = info.label,
 			TextXAlignment = Enum.TextXAlignment.Left,
-		}).Parent =
-			card
+		})
+		-- Same size on every row: short labels would otherwise scale up to fill the height.
+		Create("UITextSizeConstraint", { MaxTextSize = 20 }).Parent = label
+		label.Parent = card
 		local button = Create("TextButton", {
 			Name = "Toggle",
 			AnchorPoint = Vector2.new(1, 0.5),

@@ -125,7 +125,8 @@ function TitleController.init(_self: any)
 	local logo = Logo.new()
 	logo.root.Position = UDim2.fromScale(0.5, 0.34)
 
-	playButton = PillButton.new("⭐", "PLAY", Theme.Color.Gold, Theme.Color.GoldDark, Vector2.new(300, 92))
+	-- ★ (monochrome, outlined) rather than the ⭐ emoji, which vanishes on the gold pill.
+	playButton = PillButton.new("★", "PLAY", Theme.Color.Gold, Theme.Color.GoldDark, Vector2.new(300, 92))
 	playButton.root.AnchorPoint = Vector2.new(0.5, 0.5)
 	playButton.root.Position = UDim2.fromScale(0.5, 0.76)
 	local pulse = Instance.new("UIScale")
@@ -228,10 +229,17 @@ function TitleController.start(_self: any)
 
 	orbit()
 	controls = playerControls()
-	if controls and showing then
-		pcall(function()
-			controls:Disable()
-		end)
+	if controls then
+		-- ControlModule:Disable() calls Player:Move, which warns until the character AND its Humanoid
+		-- have replicated (CharacterAdded fires before the Humanoid arrives).
+		local player = Players.LocalPlayer
+		local character = player.Character or player.CharacterAdded:Wait()
+		character:WaitForChild("Humanoid", 10)
+		if showing then
+			pcall(function()
+				controls:Disable()
+			end)
+		end
 	end
 end
 

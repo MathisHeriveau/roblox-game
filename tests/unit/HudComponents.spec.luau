@@ -60,6 +60,22 @@ return function()
 			expect(gradient.Color.Keypoints[1].Value).to.equal(Color3.new(1, 0, 0))
 			pill.root:Destroy()
 		end)
+
+		-- Regression: the PLAY button's ⭐ emoji was orange on a gold pill, nearly invisible. Colour
+		-- emoji ignore TextColor3 and UIStroke, so buttons on a same-colour pill use a monochrome
+		-- glyph (★): it must get a light fill and a dark cartoon outline.
+		it("draws its icon light with a dark outline (monochrome glyphs stay readable)", function()
+			local function luminance(color: Color3): number
+				return 0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B
+			end
+			local pill = PillButton.new("★", "PLAY", Color3.fromRGB(255, 205, 64), Color3.fromRGB(240, 146, 16))
+			expect(luminance(pill.icon.TextColor3) > 0.7).to.equal(true)
+			local outline = pill.icon:FindFirstChildOfClass("UIStroke")
+			assert(outline, "icon outline expected")
+			expect(luminance(outline.Color) < 0.2).to.equal(true)
+			expect(outline.Thickness >= 2).to.equal(true)
+			pill.root:Destroy()
+		end)
 	end)
 
 	describe("RoundButton", function()
