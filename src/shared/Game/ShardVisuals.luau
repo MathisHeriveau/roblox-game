@@ -9,8 +9,8 @@ local ShardVisuals = {
 	CRYSTAL_TAG = "ShardCrystal",
 	STARLING_TAG = "Starling",
 	JUMP_PAD_TAG = "JumpPad",
-	-- Orientation that balances a cube on one vertex (a gem silhouette).
-	TILT = CFrame.Angles(math.rad(45), 0, math.rad(35.264)),
+	-- Resting orientation of a shard crystal: square prism turned 45° so two facets face you.
+	TILT = CFrame.Angles(0, math.rad(45), 0),
 }
 
 return table.freeze(ShardVisuals)

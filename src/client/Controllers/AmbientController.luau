@@ -27,18 +27,13 @@ local AmbientController = {
 type StarlingInfo = { base: CFrame, phase: number }
 
 local starlings: { [Model]: StarlingInfo } = {}
-local crystals: { [BasePart]: boolean } = {}
+-- Shard models whose gem spins while resting on the ground.
+local shardModels: { [Model]: boolean } = {}
 local badges: { [Model]: BillboardGui } = {}
 
 local function addStarling(instance: Instance)
 	if instance:IsA("Model") then
 		starlings[instance] = { base = instance:GetPivot(), phase = math.random() * math.pi * 2 }
-	end
-end
-
-local function addCrystal(instance: Instance)
-	if instance:IsA("BasePart") then
-		crystals[instance] = true
 	end
 end
 
@@ -80,6 +75,7 @@ end
 
 local function addShard(instance: Instance)
 	if instance:IsA("Model") then
+		shardModels[instance] = true
 		updateBadge(instance)
 	end
 end
@@ -87,6 +83,7 @@ end
 local function removeShard(instance: Instance)
 	if instance:IsA("Model") then
 		badges[instance] = nil
+		shardModels[instance] = nil
 	end
 end
 
@@ -109,11 +106,13 @@ local function step(time: number)
 		end
 	end
 
-	for crystal in crystals do
-		if crystal.Parent == nil then
-			crystals[crystal] = nil
-		elseif crystal.Anchored and (crystal.Position - eye).Magnitude < CRYSTAL_RANGE then
-			crystal.CFrame = CFrame.new(crystal.Position) * CFrame.Angles(0, time * 1.8, 0) * ShardVisuals.TILT
+	for model in shardModels do
+		local crystal = model.PrimaryPart
+		if model.Parent == nil then
+			shardModels[model] = nil
+		elseif crystal and crystal.Anchored and (crystal.Position - eye).Magnitude < CRYSTAL_RANGE then
+			-- Multi-part gem: pivot the whole model (the vertical beacon spins on its own axis).
+			model:PivotTo(CFrame.new(crystal.Position) * CFrame.Angles(0, time * 1.8, 0) * ShardVisuals.TILT)
 		end
 	end
 end
@@ -127,11 +126,6 @@ function AmbientController.start(_self: any)
 		addStarling(instance)
 	end
 	CollectionService:GetInstanceAddedSignal(ShardVisuals.STARLING_TAG):Connect(addStarling)
-
-	for _, instance in CollectionService:GetTagged(ShardVisuals.CRYSTAL_TAG) do
-		addCrystal(instance)
-	end
-	CollectionService:GetInstanceAddedSignal(ShardVisuals.CRYSTAL_TAG):Connect(addCrystal)
 
 	for _, instance in CollectionService:GetTagged(ShardVisuals.SHARD_TAG) do
 		addShard(instance)

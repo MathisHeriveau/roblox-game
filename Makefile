@@ -23,7 +23,7 @@ STUDIO_PLUGINS_DIR := $(HOME)/Documents/Roblox/Plugins
 
 .DEFAULT_GOAL := help
 .PHONY: help install tools packages studio-plugin dev dev-test build build-test studio studio-test \
-        format format-check lint typecheck validate test check sourcemap preview clean
+        format format-check lint typecheck validate test check sourcemap preview preview-models clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -88,6 +88,9 @@ check: format-check lint typecheck validate test ## Everything CI runs
 
 preview: ## Render the generated island to build/preview/*.png (top-down + isometric) and print stats
 	$(LUNE) run tools/preview.luau
+
+preview-models: ## Ray-trace the real Starling and shard models to build/preview/models.png
+	$(LUNE) run tools/preview-models.luau
 
 sourcemap: ## Regenerate sourcemap.json (the VS Code extension does this automatically)
 	$(ROJO) sourcemap $(TEST_PROJECT) --output sourcemap.json

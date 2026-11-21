@@ -128,10 +128,9 @@ local function attach(player: Player, shard: ShardState, root: BasePart, now: nu
 		shard.tile = nil
 	end
 
-	local crystal = shard.parts.crystal
 	ShardBuilder.setBeaconVisible(shard.parts, false)
-	crystal.Anchored = false
-	crystal.Massless = true
+	-- The whole gem (welded to the crystal) becomes part of the character assembly.
+	ShardBuilder.setAnchored(shard.parts, false)
 	shard.parts.model:SetAttribute("HolderUserId", player.UserId)
 
 	local list = carried[player] or {}
@@ -160,8 +159,7 @@ local function dropShard(shard: ShardState, position: Vector3, blockUserId: numb
 		return
 	end
 	local now = os.clock()
-	local crystal = shard.parts.crystal
-	crystal.Anchored = true
+	ShardBuilder.setAnchored(shard.parts, true)
 	ShardBuilder.placeAt(shard.parts, Vector3.new(position.X, tile.height, position.Z))
 	ShardBuilder.setBeaconVisible(shard.parts, true)
 	shard.readyAt = now + 0.35

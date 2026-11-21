@@ -76,9 +76,15 @@ return function()
 				expect(model:HasTag(ShardVisuals.STARLING_TAG)).to.equal(true)
 				expect(model:GetAttribute("Rarity")).to.equal(rarity.id)
 				expect(model.PrimaryPart).to.be.ok()
-				expect((model.PrimaryPart :: BasePart).Color).to.equal(rarity.color)
-				expect(model:FindFirstChild("Crown") ~= nil).to.equal(rarity.id == 4)
+				if rarity.id ~= 6 then -- Cosmic bodies are pearly white by design
+					expect((model.PrimaryPart :: BasePart).Color).to.equal(rarity.color)
+				end
+				expect(model:FindFirstChild("CrownBand") ~= nil).to.equal(rarity.id == 4)
 				expect(model:FindFirstChild("Halo") ~= nil).to.equal(rarity.id == 6)
+				-- Every Starling has a real 3D face: eyes (open or ^ ^) and a mouth.
+				expect(model:FindFirstChild("Eye") ~= nil or model:FindFirstChild("ClosedEye") ~= nil).to.equal(true)
+				expect(model:FindFirstChild("Mouth")).to.be.ok()
+				expect(model:FindFirstChild("Blush")).to.be.ok()
 				model:Destroy()
 			end
 		end)
@@ -93,15 +99,43 @@ return function()
 			expect(parts.crystal.CanCollide).to.equal(false)
 
 			ShardBuilder.setVisible(parts, false)
-			expect(parts.crystal.Transparency).to.equal(1)
+			for _, gem in parts.gems do
+				expect(gem.Transparency).to.equal(1)
+			end
 			ShardBuilder.setVisible(parts, true)
-			expect(parts.crystal.Transparency).to.equal(0)
+			expect(parts.crystal.Transparency).to.equal(parts.crystal:GetAttribute("BaseTransparency"))
 
+			-- Every gem part keeps its offset from the crystal when the shard is moved.
+			local probe = parts.gems[#parts.gems]
+			local before = parts.crystal.CFrame:ToObjectSpace(probe.CFrame)
 			ShardBuilder.placeAt(parts, Vector3.new(-20, 3, 7))
 			local position = parts.crystal.CFrame.Position
 			expect(position.X).to.be.near(-20, 1e-6)
 			expect(position.Z).to.be.near(7, 1e-6)
 			expect(position.Y > 3).to.equal(true)
+			local after = parts.crystal.CFrame:ToObjectSpace(probe.CFrame)
+			expect((after.Position - before.Position).Magnitude).to.be.near(0, 1e-4)
+			parts.model:Destroy()
+		end)
+
+		it("welds every gem part to the crystal and anchors them together", function()
+			local parts = ShardBuilder.build(4, false, false, Vector3.zero)
+			expect(#parts.gems > 1).to.equal(true)
+			for _, gem in parts.gems do
+				if gem ~= parts.crystal then
+					local weld = gem:FindFirstChildOfClass("WeldConstraint") :: WeldConstraint
+					expect(weld).to.be.ok()
+					expect(weld.Part0).to.equal(parts.crystal)
+				end
+			end
+			ShardBuilder.setAnchored(parts, false)
+			for _, gem in parts.gems do
+				expect(gem.Anchored).to.equal(false)
+				expect(gem.Massless).to.equal(true)
+			end
+			ShardBuilder.setAnchored(parts, true)
+			expect(parts.crystal.Anchored).to.equal(true)
+			expect(parts.beacon.Anchored).to.equal(true)
 			parts.model:Destroy()
 		end)
 
