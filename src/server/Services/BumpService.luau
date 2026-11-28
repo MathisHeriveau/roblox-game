@@ -5,9 +5,11 @@
 	The client only says "bump" (no target, no position). The server picks the nearest valid
 	carrier in range (ShardRules.bumpTarget), enforces the attacker cooldown, the victim's
 	immunity and the safe zones (bases), then drops the shard and asks the victim's client to
-	apply the knockback (characters are physically owned by their client).
+	apply the knockback (characters are physically owned by their client). The victim gets an
+	escape boost: a short speed burst with a visible trail, lasting as long as their immunity.
 ]]
 
+local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -16,6 +18,7 @@ local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 local Guard = require(ReplicatedStorage.Shared.Utils.Guard)
 local Server = ServerScriptService.Server
 local BaseService = require(Server.Services.BaseService)
+local CharacterService = require(Server.Services.CharacterService)
 local Notifier = require(Server.Systems.Notifier)
 local PlayerDataService = require(Server.Services.PlayerDataService)
 local RaidService = require(Server.Services.RaidService)
@@ -42,6 +45,30 @@ local function rootOf(player: Player): (BasePart?, boolean)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	local alive = humanoid ~= nil and humanoid.Health > 0
 	return if root and root:IsA("BasePart") then root else nil, alive
+end
+
+-- A short white-to-cyan trail behind a boosted character (replicated: everyone sees the escape).
+local function addEscapeTrail(root: BasePart, seconds: number)
+	local top = Instance.new("Attachment")
+	top.Name = "EscapeTrailTop"
+	top.Position = Vector3.new(0, 1, 0)
+	local bottom = Instance.new("Attachment")
+	bottom.Name = "EscapeTrailBottom"
+	bottom.Position = Vector3.new(0, -1.2, 0)
+	local trail = Instance.new("Trail")
+	trail.Name = "EscapeTrail"
+	trail.Attachment0 = top
+	trail.Attachment1 = bottom
+	trail.Lifetime = 0.35
+	trail.LightEmission = 0.8
+	trail.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(120, 220, 255))
+	trail.Transparency = NumberSequence.new(0.2, 1)
+	top.Parent = root
+	bottom.Parent = root
+	trail.Parent = root
+	Debris:AddItem(trail, seconds)
+	Debris:AddItem(top, seconds + 0.5)
+	Debris:AddItem(bottom, seconds + 0.5)
 end
 
 local function onBump(attacker: Player)
@@ -93,6 +120,9 @@ local function onBump(attacker: Player)
 	end
 
 	ServerNet.fireClient("Knockback", target, direction)
+	-- Escape boost: the victim gets a short speed burst (and a trail everyone sees) to get away.
+	CharacterService.boost(target, "escape", bump.EscapeBoostFactor, bump.EscapeBoostSeconds)
+	addEscapeTrail(targetRoot, bump.EscapeBoostSeconds)
 	ServerNet.fireAllClients("WorldEvent", { kind = "bump", position = targetRoot.Position })
 	PlayerDataService.update(attacker, function(draft)
 		draft.stats.bumpsLanded += 1
@@ -101,7 +131,7 @@ local function onBump(attacker: Player)
 		Notifier.send(attacker, `🛡️ You stopped {target.DisplayName}'s raid!`, "success")
 	else
 		Notifier.send(attacker, `💥 You bumped {target.DisplayName}!`, "success")
-		Notifier.send(target, `💥 {attacker.DisplayName} bumped you: shard dropped!`, "warning")
+		Notifier.send(target, `💥 {attacker.DisplayName} bumped you: shard dropped! 💨 Run!`, "warning")
 	end
 end
 

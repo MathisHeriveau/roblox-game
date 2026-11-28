@@ -114,6 +114,9 @@ local GameConfig = {
 		-- A bumped player cannot be bumped again for this long.
 		ImmunitySeconds = 3,
 		KnockbackForce = 70,
+		-- Escape boost: a bumped player gets a short speed burst to get away (owner's idea).
+		EscapeBoostFactor = 1.35,
+		EscapeBoostSeconds = 3,
 	}),
 
 	Raid = table.freeze({

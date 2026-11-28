@@ -31,6 +31,8 @@ from their open bases, and lock your own shield before someone steals yours.
   thief is slowed (x0.62), so a bump from anyone sends the Starling home. Owners lock their base
   at its console (60 s shield). New arrivals get 90 s of free protection, and players with fewer
   than 2 Starlings can't be raided.
+- **Escape boost**: a bumped player gets +35 % speed for 3 s (as long as their bump immunity),
+  with a trail everyone sees: getting bumped is a setback, not a death sentence.
 - **Rarities**: Common, Rare, Epic, Legendary, Mythic, Cosmic, plus 4 % **Shiny** (x3 income,
   sparkles).
 - **Levels**: XP from deliveries (double for shinies).

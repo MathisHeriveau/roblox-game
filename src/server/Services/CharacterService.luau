@@ -1,7 +1,10 @@
 --!strict
 --[[
 	CharacterService — applies movement stats to characters: walk speed from the Speed upgrade,
-	slowed down by every shard carried. Server-set WalkSpeed replicates to the owning client.
+	slowed down by every shard carried, times named modifiers (stolen Starling, escape boost).
+	Server-set WalkSpeed replicates to the owning client.
+
+	API: targetSpeed(player), setModifier(player, key, factor?), boost(player, key, factor, seconds).
 ]]
 
 local Players = game:GetService("Players")
@@ -20,6 +23,8 @@ local CharacterService = {
 
 -- Extra multiplicative speed factors set by other services (e.g. carrying a stolen Starling).
 local modifiers: { [Player]: { [string]: number } } = {}
+-- Latest timed boost per player and key: an older boost's timer never clears a newer one.
+local boostTokens: { [Player]: { [string]: number } } = {}
 
 function CharacterService.targetSpeed(player: Player): number
 	local data = PlayerDataService.peek(player)
@@ -64,6 +69,21 @@ function CharacterService.setModifier(player: Player, key: string, factor: numbe
 	apply(player)
 end
 
+-- Applies `factor` under `key` for `seconds`, then clears it (unless boosted again meanwhile).
+function CharacterService.boost(player: Player, key: string, factor: number, seconds: number)
+	local tokens = boostTokens[player] or {}
+	boostTokens[player] = tokens
+	local token = (tokens[key] or 0) + 1
+	tokens[key] = token
+	CharacterService.setModifier(player, key, factor)
+	task.delay(seconds, function()
+		local current = boostTokens[player]
+		if current and current[key] == token and player.Parent ~= nil then
+			CharacterService.setModifier(player, key, nil)
+		end
+	end)
+end
+
 function CharacterService.init(_self: any)
 	-- Event-driven: everything is wired in start().
 end
@@ -75,6 +95,7 @@ function CharacterService.start(_self: any)
 	end
 	Players.PlayerRemoving:Connect(function(player)
 		modifiers[player] = nil
+		boostTokens[player] = nil
 	end)
 	PlayerDataService.loaded:connect(function(player)
 		apply(player)
