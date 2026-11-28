@@ -13,6 +13,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local ShardVisuals = require(ReplicatedStorage.Shared.Game.ShardVisuals)
+local StarlingBob = require(script.Parent.Parent.Effects.StarlingBob)
 local StateController = require(script.Parent.StateController)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local Zones = require(ReplicatedStorage.Shared.Config.Zones)
@@ -24,7 +25,8 @@ local AmbientController = {
 	name = "AmbientController",
 }
 
-type StarlingInfo = { base: CFrame, phase: number }
+-- `base` stays nil until the model's core has replicated (see Effects/StarlingBob).
+type StarlingInfo = { base: CFrame?, phase: number }
 
 local starlings: { [Model]: StarlingInfo } = {}
 -- Shard models whose gem spins while resting on the ground.
@@ -33,7 +35,7 @@ local badges: { [Model]: BillboardGui } = {}
 
 local function addStarling(instance: Instance)
 	if instance:IsA("Model") then
-		starlings[instance] = { base = instance:GetPivot(), phase = math.random() * math.pi * 2 }
+		starlings[instance] = { base = StarlingBob.restPose(instance), phase = math.random() * math.pi * 2 }
 	end
 end
 
@@ -97,12 +99,12 @@ local function step(time: number)
 	for model, info in starlings do
 		if model.Parent == nil then
 			starlings[model] = nil
-		elseif (info.base.Position - eye).Magnitude < STARLING_RANGE then
-			model:PivotTo(
-				info.base
-					* CFrame.new(0, math.sin(time * 2.2 + info.phase) * 0.35, 0)
-					* CFrame.Angles(0, math.sin(time * 0.9 + info.phase) * 0.45, 0)
-			)
+			continue
+		end
+		local base = info.base or StarlingBob.restPose(model)
+		info.base = base
+		if base and (base.Position - eye).Magnitude < STARLING_RANGE then
+			model:PivotTo(base * StarlingBob.offset(time, info.phase))
 		end
 	end
 
