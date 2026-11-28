@@ -8,6 +8,7 @@
 local Create = require(script.Parent.Parent.Create)
 local Layers = require(script.Parent.Parent.Layers)
 local Modal = require(script.Parent.Parent.Modal)
+local Motion = require(script.Parent.Parent.Motion)
 local Theme = require(script.Parent.Parent.Theme)
 
 export type Panel = {
@@ -102,6 +103,8 @@ function Panel.new(name: string, title: string, size: Vector2): Panel
 		Modal.closed(name)
 	end
 
+	Motion.bindPress(closeButton)
+
 	return {
 		gui = gui,
 		body = body,
@@ -110,7 +113,11 @@ function Panel.new(name: string, title: string, size: Vector2): Panel
 		dim = dim,
 		open = function()
 			Modal.opened(name, close)
+			local wasOpen = gui.Enabled
 			gui.Enabled = true
+			if not wasOpen then
+				Motion.popIn(scale)
+			end
 		end,
 		close = close,
 		isOpen = function()

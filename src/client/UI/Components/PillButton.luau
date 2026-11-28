@@ -12,6 +12,7 @@
 
 local Art = require(script.Parent.Parent.Art)
 local Create = require(script.Parent.Parent.Create)
+local Motion = require(script.Parent.Parent.Motion)
 local Theme = require(script.Parent.Parent.Theme)
 
 export type PillButton = {
@@ -102,6 +103,8 @@ function PillButton.new(icon: string, text: string, top: Color3, bottom: Color3,
 		Theme.gloss(root, math.floor(dimensions.Y * 0.22))
 	end
 
+	Motion.bindPress(root)
+
 	return {
 		root = root,
 		label = label,
@@ -111,7 +114,10 @@ function PillButton.new(icon: string, text: string, top: Color3, bottom: Color3,
 			label.Text = value
 		end,
 		setBadge = function(visible: boolean)
-			badge.Visible = visible
+			if badge.Visible ~= visible then
+				badge.Visible = visible
+				Motion.pulse(badge, visible)
+			end
 		end,
 		setColors = function(newTop: Color3, newBottom: Color3)
 			if gradient then

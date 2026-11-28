@@ -161,7 +161,8 @@ function TitleController.init(_self: any)
 	playButton = PillButton.new("★", "PLAY", Theme.Color.Gold, Theme.Color.GoldDark, Vector2.new(300, 92))
 	playButton.root.AnchorPoint = Vector2.new(0.5, 0.5)
 	playButton.root.Position = UDim2.fromScale(0.5, 0.76)
-	local pulse = Instance.new("UIScale")
+	-- Reuse the button's press scale: a GuiObject honours only one UIScale.
+	local pulse = playButton.root:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
 	pulse.Parent = playButton.root
 	TweenService
 		:Create(

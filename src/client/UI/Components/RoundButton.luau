@@ -7,6 +7,7 @@
 
 local Art = require(script.Parent.Parent.Art)
 local Create = require(script.Parent.Parent.Create)
+local Motion = require(script.Parent.Parent.Motion)
 local Theme = require(script.Parent.Parent.Theme)
 
 export type RoundButton = {
@@ -95,12 +96,17 @@ function RoundButton.new(name: string, icon: string, caption: string, top: Color
 		Size = UDim2.fromOffset(SIZE + 8, SIZE + 20),
 	}, { button :: Instance, label }) :: Frame
 
+	Motion.bindPress(button)
+
 	return {
 		root = root,
 		button = button,
 		badge = badge,
 		setBadge = function(visible: boolean)
-			badge.Visible = visible
+			if badge.Visible ~= visible then
+				badge.Visible = visible
+				Motion.pulse(badge, visible)
+			end
 		end,
 	}
 end

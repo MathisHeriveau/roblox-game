@@ -20,6 +20,7 @@ local Economy = require(ReplicatedStorage.Shared.Game.Economy)
 local Format = require(ReplicatedStorage.Shared.Game.Format)
 local Layers = require(script.Parent.Parent.UI.Layers)
 local Modal = require(script.Parent.Parent.UI.Modal)
+local Motion = require(script.Parent.Parent.UI.Motion)
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
 local Sfx = require(script.Parent.Parent.Effects.Sfx)
@@ -249,7 +250,11 @@ end
 function ShopController.open(focus: string?)
 	render(StateController.get())
 	Modal.opened("Shop", ShopController.close)
+	local wasOpen = gui.Enabled
 	gui.Enabled = true
+	if not wasOpen then
+		Motion.popIn(scale)
+	end
 	scrollTo(focus)
 end
 
