@@ -135,6 +135,10 @@ local GameConfig = {
 		-- Characters below this height fell off the floating island and respawn (HazardService).
 		-- Must stay below every walkable surface (checked by HazardRules.spec).
 		VoidKillHeight = -110,
+		-- Players.RespawnTime: a fall or a lava death should not keep you staring at the void.
+		RespawnSeconds = 3,
+		-- While standing in lava, the "get out" warning toast repeats at most this often.
+		BurnNoticeSeconds = 4,
 	}),
 
 	World = table.freeze({

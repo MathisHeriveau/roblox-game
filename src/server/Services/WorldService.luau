@@ -1,7 +1,7 @@
 --!strict
 --[[
 	WorldService — the Comet Raiders atmosphere: violet dusk sky full of stars, glow (bloom) for
-	the neon shards and Starlings, and the gravity jump pads are tuned for.
+	the neon shards and Starlings, the gravity jump pads are tuned for, and a short respawn time.
 
 	Also removes leftovers of Studio place templates at runtime (the template "Baseplate" would
 	otherwise cover the void under the island). Never touches the saved place.
@@ -12,6 +12,7 @@
 ]]
 
 local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
@@ -86,6 +87,7 @@ function WorldService.init(_self: any)
 
 	-- Jump pad trajectories are computed for this gravity (GameConfig.Map.Gravity).
 	Workspace.Gravity = GameConfig.Map.Gravity
+	Players.RespawnTime = GameConfig.Hazards.RespawnSeconds
 end
 
 function WorldService.start(_self: any)

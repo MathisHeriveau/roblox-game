@@ -9,6 +9,7 @@
 ]]
 
 local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
@@ -31,6 +32,12 @@ return function()
 			expect(Lighting:FindFirstChildOfClass("Atmosphere")).to.be.ok()
 			expect(Lighting:FindFirstChildOfClass("Sky")).to.be.ok()
 			expect(Workspace.Gravity).to.be.near(GameConfig.Map.Gravity, 1e-3)
+		end)
+
+		it("respawns quickly after a fall or a lava death (playtest: 5 s staring at the void)", function()
+			WorldService.init(WorldService)
+			expect(Players.RespawnTime).to.be.near(GameConfig.Hazards.RespawnSeconds, 1e-4)
+			expect(GameConfig.Hazards.RespawnSeconds < 5).to.equal(true)
 		end)
 
 		it("is idempotent: effects are reused, not duplicated", function()

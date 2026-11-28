@@ -7,6 +7,8 @@
 	    positionY       character root height (studs)
 	    tile            map tile under the character, or nil when over the void
 	    voidKillHeight  below this height the character fell off the island (GameConfig.Hazards)
+	  HazardRules.deathNotice(hazard, carrying) -> string?   toast explaining a hazard death
+	  HazardRules.shouldWarnBurn(lastWarnedAt?, now, interval) -> boolean   "get out" throttle
 
 	"void" wins over everything (falling is fatal and must not depend on the tile lookup).
 	Non-finite heights are treated as "void": a character at NaN/inf is broken, respawn it.
@@ -39,6 +41,31 @@ function HazardRules.classify(positionY: number, tile: MapLayout.Tile?, voidKill
 		return "lava"
 	end
 	return "safe"
+end
+
+local function shards(count: number): string
+	return if count == 1 then "1 shard" else `{count} shards`
+end
+
+-- The toast a player gets when a hazard kills them. `carrying` = shards they had: off the island
+-- they are lost, in a lava pit they drop where the player burned.
+function HazardRules.deathNotice(hazard: Hazard, carrying: number): string?
+	if hazard == "void" then
+		if carrying > 0 then
+			return `💫 You fell off the island and lost {shards(carrying)}! Back to your base…`
+		end
+		return "💫 You fell off the island! Back to your base…"
+	elseif hazard == "lava" then
+		if carrying > 0 then
+			return `🔥 You burned in the lava and dropped {shards(carrying)}! Back to your base…`
+		end
+		return "🔥 You burned in the lava! Back to your base…"
+	end
+	return nil
+end
+
+function HazardRules.shouldWarnBurn(lastWarnedAt: number?, now: number, interval: number): boolean
+	return lastWarnedAt == nil or now - lastWarnedAt >= interval
 end
 
 return table.freeze(HazardRules)

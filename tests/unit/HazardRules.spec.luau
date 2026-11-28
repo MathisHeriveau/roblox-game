@@ -65,6 +65,39 @@ return function()
 		end)
 	end)
 
+	-- Playtest 2026-11-28: burning and falling gave no feedback at all (no toast, no reason).
+	describe("HazardRules.deathNotice", function()
+		it("explains a fall and the shards it cost", function()
+			expect(HazardRules.deathNotice("void", 0)).to.equal("💫 You fell off the island! Back to your base…")
+			expect(HazardRules.deathNotice("void", 1)).to.equal(
+				"💫 You fell off the island and lost 1 shard! Back to your base…"
+			)
+			expect(HazardRules.deathNotice("void", 3)).to.equal(
+				"💫 You fell off the island and lost 3 shards! Back to your base…"
+			)
+		end)
+
+		it("explains a lava death (dropped shards stay in the lava pit)", function()
+			expect(HazardRules.deathNotice("lava", 0)).to.equal("🔥 You burned in the lava! Back to your base…")
+			expect(HazardRules.deathNotice("lava", 2)).to.equal(
+				"🔥 You burned in the lava and dropped 2 shards! Back to your base…"
+			)
+		end)
+
+		it("says nothing when it was not a hazard", function()
+			expect(HazardRules.deathNotice("safe", 2)).to.equal(nil)
+		end)
+	end)
+
+	describe("HazardRules.shouldWarnBurn", function()
+		it("warns on the first burn, then at most once per interval", function()
+			expect(HazardRules.shouldWarnBurn(nil, 100, 4)).to.equal(true)
+			expect(HazardRules.shouldWarnBurn(100, 101, 4)).to.equal(false)
+			expect(HazardRules.shouldWarnBurn(100, 103.99, 4)).to.equal(false)
+			expect(HazardRules.shouldWarnBurn(100, 104, 4)).to.equal(true)
+		end)
+	end)
+
 	describe("GameConfig.Hazards.VoidKillHeight", function()
 		it("lies below every walkable surface of the generated world", function()
 			local layout = MapLayout.generate(GameConfig.Map)

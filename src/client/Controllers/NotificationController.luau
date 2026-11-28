@@ -6,6 +6,9 @@
 	Toasts stack upwards from just above the carry pill (bottom centre), newest at the bottom: the
 	top of the screen belongs to the HUD's banner column (countdowns, zone and comet banners),
 	whose height changes, and toasts used to cover the comet banner.
+
+	Also tints the screen red for a moment (and says "ouch") when the local character loses health:
+	lava used to burn silently.
 ]]
 
 local Players = game:GetService("Players")
@@ -17,6 +20,7 @@ local ClientNet = require(ReplicatedStorage.Shared.Net.ClientNet)
 local Create = require(script.Parent.Parent.UI.Create)
 local Layers = require(script.Parent.Parent.UI.Layers)
 local Rarities = require(ReplicatedStorage.Shared.Config.Rarities)
+local Settings = require(script.Parent.Parent.Settings)
 local Sfx = require(script.Parent.Parent.Effects.Sfx)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local Toast = require(script.Parent.Parent.UI.Components.Toast)
@@ -26,6 +30,10 @@ local LIFETIME_SECONDS = 3.2
 local POP_SECONDS = 0.18
 -- Distance from the bottom of the screen to the newest toast: clears the carry pill and its hint.
 local BOTTOM_OFFSET = 128
+-- Hurt feedback: ignore tiny health changes, flash at most this often (lava ticks 4x per second).
+local HURT_MIN_DAMAGE = 0.5
+local HURT_MIN_INTERVAL = 0.45
+local HURT_FLASH_TRANSPARENCY = 0.72
 
 local STYLE_COLORS: { [string]: Color3 } = {
 	info = Theme.Color.Blue,
@@ -49,6 +57,33 @@ local gui: ScreenGui
 local holder: Frame
 local scale: UIScale
 local order = 0
+local lastHurtAt = -math.huge
+
+local function pulseFlash(transparency: number, seconds: number)
+	flash.BackgroundTransparency = transparency
+	TweenService:Create(flash, TweenInfo.new(seconds), { BackgroundTransparency = 1 }):Play()
+end
+
+local function watchHealth(character: Model)
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if humanoid == nil or not humanoid:IsA("Humanoid") then
+		return
+	end
+	local last = humanoid.Health
+	humanoid.HealthChanged:Connect(function(health: number)
+		local lost = last - health
+		last = health
+		local now = os.clock()
+		if lost < HURT_MIN_DAMAGE or now - lastHurtAt < HURT_MIN_INTERVAL then
+			return
+		end
+		lastHurtAt = now
+		Sfx.play(Sfx.HURT, 0.45)
+		if Settings.get("effects") then
+			pulseFlash(HURT_FLASH_TRANSPARENCY, 0.35)
+		end
+	end)
+end
 
 function NotificationController.show(text: string, style: string, rarity: number?)
 	local color = STYLE_COLORS[style] or Theme.Color.Blue
@@ -83,8 +118,7 @@ function NotificationController.show(text: string, style: string, rarity: number
 		Sfx.play(Sfx.PICKUP, 0.35)
 	elseif style == "alarm" then
 		Sfx.play(Sfx.HURT, 0.8)
-		flash.BackgroundTransparency = 0.55
-		TweenService:Create(flash, TweenInfo.new(0.9), { BackgroundTransparency = 1 }):Play()
+		pulseFlash(0.55, 0.9)
 	end
 	task.delay(LIFETIME_SECONDS, function()
 		if toast.Parent == nil then
@@ -142,6 +176,12 @@ function NotificationController.start(_self: any)
 		end
 		camera:GetPropertyChangedSignal("ViewportSize"):Connect(rescale)
 		rescale()
+	end
+
+	local player = Players.LocalPlayer
+	player.CharacterAdded:Connect(watchHealth)
+	if player.Character then
+		task.spawn(watchHealth, player.Character)
 	end
 
 	ClientNet.onEvent("Notify", function(payload: unknown)
