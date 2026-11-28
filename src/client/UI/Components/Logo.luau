@@ -3,9 +3,11 @@
 	Logo — the COMET RAIDERS title of the style sheet, built from text: a gold "COMET" over a white
 	"RAIDERS", each with a thick dark outline and a 3D drop, a purple orbit ring, a big star and
 	sparkles. Each word is three stacked labels (depth, outline, gradient face) so the gradient
-	never tints the outline.
+	never tints the outline. Once the style sheet's logo image is uploaded (UI/Art) it is shown
+	instead.
 ]]
 
+local Art = require(script.Parent.Parent.Art)
 local Create = require(script.Parent.Parent.Create)
 local Theme = require(script.Parent.Parent.Theme)
 
@@ -71,6 +73,18 @@ local function sparkle(position: UDim2, size: number, rotation: number, glyph: s
 end
 
 function Logo.new(): Logo
+	local art = Art.label("logo")
+	if art then
+		local width = 580
+		return {
+			root = Create("Frame", {
+				Name = "Logo",
+				BackgroundTransparency = 1,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.fromOffset(width, math.floor(width / Art.aspect("logo"))),
+			}, { art }) :: Frame,
+		}
+	end
 	local ring = Create("Frame", {
 		Name = "Orbit",
 		AnchorPoint = Vector2.new(0.5, 0.5),

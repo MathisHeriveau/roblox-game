@@ -2,13 +2,15 @@
 --[[
 	PillButton — the wide candy button of the style sheet ("⭐ Play", "🛒 Shop"): rounded gradient
 	pill, glossy top, dark outline, icon on the left and a chunky outlined label.
-	`setBadge` shows a red "!" bubble (something to claim).
+	`setBadge` shows a red "!" bubble (something to claim). When the style sheet has a button for
+	this label (Play, Shop) and it is uploaded (UI/Art), the image replaces the drawn pill.
 
 	Colour emoji ignore TextColor3 and UIStroke: they keep their own colours. On a pill of the same
 	colour (⭐ on gold) pass a monochrome glyph instead (★), which gets the light fill and dark
 	cartoon outline below.
 ]]
 
+local Art = require(script.Parent.Parent.Art)
 local Create = require(script.Parent.Parent.Create)
 local Theme = require(script.Parent.Parent.Theme)
 
@@ -82,10 +84,23 @@ function PillButton.new(icon: string, text: string, top: Color3, bottom: Color3,
 		AutoButtonColor = true,
 		ZIndex = 2,
 	}, { iconLabel :: Instance, label, badge }) :: TextButton
-	Theme.corner(root, math.floor(dimensions.Y * 0.32))
-	Theme.border(root, 3.5)
-	local gradient = Theme.gradient(root, top, bottom)
-	Theme.gloss(root, math.floor(dimensions.Y * 0.22))
+	local gradient: UIGradient? = nil
+	local art = Art.label(string.lower(text))
+	if art then
+		-- The sprite has its own icon and text: size the button to it.
+		local height = math.floor(dimensions.Y * 1.2)
+		root.Size = UDim2.fromOffset(math.floor(height * Art.aspect(string.lower(text))), height)
+		root.BackgroundTransparency = 1
+		art.ZIndex = 3
+		art.Parent = root
+		iconLabel.Visible = false
+		label.Visible = false
+	else
+		Theme.corner(root, math.floor(dimensions.Y * 0.32))
+		Theme.border(root, 3.5)
+		gradient = Theme.gradient(root, top, bottom)
+		Theme.gloss(root, math.floor(dimensions.Y * 0.22))
+	end
 
 	return {
 		root = root,
@@ -99,7 +114,9 @@ function PillButton.new(icon: string, text: string, top: Color3, bottom: Color3,
 			badge.Visible = visible
 		end,
 		setColors = function(newTop: Color3, newBottom: Color3)
-			gradient.Color = ColorSequence.new(newTop, newBottom)
+			if gradient then
+				gradient.Color = ColorSequence.new(newTop, newBottom)
+			end
 		end,
 	}
 end

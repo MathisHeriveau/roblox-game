@@ -2,8 +2,10 @@
 --[[
 	RoundButton — the round icon buttons of the style sheet (⚙️ 📊 🎁 🐾 🏆 📅): glossy candy
 	circle, dark outline, emoji icon, optional red "!" badge and a small caption under it.
+	When the style sheet's icon `icon-<name>` is uploaded (UI/Art), it replaces the drawn circle.
 ]]
 
+local Art = require(script.Parent.Parent.Art)
 local Create = require(script.Parent.Parent.Create)
 local Theme = require(script.Parent.Parent.Theme)
 
@@ -58,9 +60,21 @@ function RoundButton.new(name: string, icon: string, caption: string, top: Color
 		ZIndex = 2,
 	}, { iconLabel :: Instance, badge }) :: TextButton
 	Theme.corner(button)
-	Theme.border(button, 3)
-	Theme.gradient(button, top, bottom)
-	Theme.gloss(button)
+	local art = Art.label("icon-" .. string.lower(name))
+	if art then
+		-- The sprite is the whole button (circle, rim, glow): slightly larger than the hit area.
+		art.AnchorPoint = Vector2.new(0.5, 0.5)
+		art.Position = UDim2.fromScale(0.5, 0.5)
+		art.Size = UDim2.fromScale(1.16, 1.16)
+		art.ZIndex = 2
+		art.Parent = button
+		button.BackgroundTransparency = 1
+		iconLabel.Visible = false
+	else
+		Theme.border(button, 3)
+		Theme.gradient(button, top, bottom)
+		Theme.gloss(button)
+	end
 
 	local label = Create("TextLabel", {
 		Name = "Caption",

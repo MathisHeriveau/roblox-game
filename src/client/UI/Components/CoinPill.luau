@@ -1,11 +1,13 @@
 --!strict
 --[[
 	CoinPill — the gold coin counter with its "+" (open shop) button and the income line below.
-	Pure Instance construction: testable headlessly.
+	Uses the style sheet's coin and "+" images once uploaded (UI/Art). Pure Instance
+	construction: testable headlessly.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Art = require(script.Parent.Parent.Art)
 local Create = require(script.Parent.Parent.Create)
 local Format = require(ReplicatedStorage.Shared.Game.Format)
 local Theme = require(script.Parent.Parent.Theme)
@@ -49,10 +51,20 @@ function CoinPill.new(): CoinPill
 		Position = UDim2.fromOffset(-6, -2),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 	}, { symbol }) :: Frame
-	Theme.corner(coin)
-	Theme.border(coin, 3)
-	Theme.gradient(coin, Theme.Color.Gold, Theme.Color.GoldDark)
-	Theme.padding(coin, 10)
+	local coinArt = Art.label("coin")
+	if coinArt then
+		coinArt.AnchorPoint = Vector2.new(0.5, 0.5)
+		coinArt.Position = UDim2.fromScale(0.5, 0.5)
+		coinArt.Size = UDim2.fromScale(1.15, 1.15)
+		coinArt.Parent = coin
+		coin.BackgroundTransparency = 1
+		symbol.Visible = false
+	else
+		Theme.corner(coin)
+		Theme.border(coin, 3)
+		Theme.gradient(coin, Theme.Color.Gold, Theme.Color.GoldDark)
+		Theme.padding(coin, 10)
+	end
 
 	local plusButton = Create("TextButton", {
 		Name = "Plus",
@@ -66,10 +78,20 @@ function CoinPill.new(): CoinPill
 		TextScaled = true,
 		AutoButtonColor = true,
 	}) :: TextButton
-	Theme.corner(plusButton)
-	Theme.border(plusButton, 2)
-	Theme.gradient(plusButton, Theme.Color.Gold, Theme.Color.GoldDark)
-	Theme.textOutline(plusButton)
+	local plusArt = Art.label("plus")
+	if plusArt then
+		plusArt.AnchorPoint = Vector2.new(0.5, 0.5)
+		plusArt.Position = UDim2.fromScale(0.5, 0.5)
+		plusArt.Size = UDim2.fromScale(1.15, 1.15)
+		plusArt.Parent = plusButton
+		plusButton.BackgroundTransparency = 1
+		plusButton.Text = ""
+	else
+		Theme.corner(plusButton)
+		Theme.border(plusButton, 2)
+		Theme.gradient(plusButton, Theme.Color.Gold, Theme.Color.GoldDark)
+		Theme.textOutline(plusButton)
+	end
 
 	local pill = Create("Frame", {
 		Name = "Pill",
