@@ -23,7 +23,8 @@ STUDIO_PLUGINS_DIR := $(HOME)/Documents/Roblox/Plugins
 
 .DEFAULT_GOAL := help
 .PHONY: help install tools packages studio-plugin dev dev-test build build-test studio studio-test \
-        format format-check lint typecheck validate test check sourcemap preview preview-models clean
+        format format-check lint typecheck validate test check sourcemap preview preview-models \
+        studio-sync studio-sync-serve clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -91,6 +92,12 @@ preview: ## Render the generated island to build/preview/*.png (top-down + isome
 
 preview-models: ## Ray-trace the real Starling and shard models to build/preview/models.png
 	$(LUNE) run tools/preview-models.luau
+
+studio-sync: ## Bundle src/ + tests/ for Studio MCP sessions (execute_luau build/studio-sync/sync.luau)
+	python3 tools/studio-sync.py
+
+studio-sync-serve: studio-sync ## Serve the sync bundle on 127.0.0.1:8766 (keep it running in the background)
+	python3 -m http.server 8766 --bind 127.0.0.1 --directory $(BUILD_DIR)/studio-sync
 
 sourcemap: ## Regenerate sourcemap.json (the VS Code extension does this automatically)
 	$(ROJO) sourcemap $(TEST_PROJECT) --output sourcemap.json

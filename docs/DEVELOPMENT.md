@@ -12,6 +12,20 @@
 To work on tests inside Studio, use `make dev-test` (syncs the test place, which also contains
 specs, TestEZ and `TestRunner`) and press Play: results appear in Output.
 
+## Syncing from a Claude session (Studio MCP, no Rojo)
+
+A Claude session connected to Studio's MCP server cannot click the Rojo plugin's Connect button.
+It syncs over HTTP instead:
+
+1. `make studio-sync-serve` in the background (serves `build/studio-sync` on 127.0.0.1:8766).
+2. After each edit: `make studio-sync`, then run the content of `build/studio-sync/sync.luau`
+   with `execute_luau` while Studio is in **Edit** mode (not playing). It mirrors `src/` and
+   `tests/` exactly like `test.project.json` and deletes scripts removed from the repo.
+3. Play with `start_stop_play`; the TestRunner sets `TestsPassed` / `TestsFailed` attributes on
+   ServerScriptService.
+
+Stop the server when done (`pkill -f "http.server 8766"`).
+
 ## Working with Claude Code
 
 ```bash

@@ -19,7 +19,8 @@ Never design blind:
   and `island-iso.png` (Read tool) before and after. Check zones, landmarks, pads and bases.
 - In-engine: with Roblox Studio open and its MCP server enabled (Assistant > Manage MCP Servers),
   this project's `.mcp.json` gives you `screen_capture`, `execute_luau`, `start_stop_play`,
-  `get_console_output` and input simulation. Playtest, capture the viewport, read the console.
+  `get_console_output` and input simulation. Sync code into Studio with `make studio-sync`
+  (see `docs/DEVELOPMENT.md`), playtest, capture the viewport, read the console.
   A feature is not done until you have seen it work or listed exactly what remains unverified.
 
 ## Commands (run from the repo root)
@@ -32,6 +33,7 @@ Never design blind:
 | `make dev` / `make dev-test` | Rojo live sync of the game / test place into Studio |
 | `make build` · `make studio` · `make studio-test` | Build place files (and open them in Studio) |
 | `make preview` | Render the generated world to `build/preview/*.png` + stats (look at it!) |
+| `make studio-sync` / `make studio-sync-serve` | Mirror the repo into an open Studio through the Studio MCP (no Rojo) |
 
 Tools are pinned in `rokit.toml` (Rojo, StyLua, Selene, Wally, Lune, luau-lsp). Never install
 global alternatives or change versions without an ADR in `docs/DECISIONS.md`.
