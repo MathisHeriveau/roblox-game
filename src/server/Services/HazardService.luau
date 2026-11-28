@@ -34,7 +34,8 @@ local function tick(dt: number)
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		if root and root:IsA("BasePart") and humanoid and humanoid.Health > 0 then
 			local position = root.Position
-			local hazard = HazardRules.classify(position.Y, MapService.tileAt(position), hazards.VoidKillHeight)
+			local hazard: HazardRules.Hazard =
+				HazardRules.classify(position.Y, MapService.tileAt(position), hazards.VoidKillHeight)
 			-- Read before the death: dying drops (or loses) every carried shard.
 			local carrying = ShardService.getCarryCount(player)
 			if hazard == "void" then
