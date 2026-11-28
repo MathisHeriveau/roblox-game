@@ -59,6 +59,7 @@ for material, color in MapBuilder.materialColors() do
 	materialColors[material] = rgb(color)
 end
 local CELLS = MapBuilder.SURFACE_DIVISIONS
+local decorPlan = MapBuilder.decorPlan(layout)
 local plots = BaseLayout.generate(GameConfig.Base)
 local impacts = SkySchedule.meteorImpacts(Prng.new(7), layout, 24, function()
 	return true
@@ -231,6 +232,12 @@ do
 			local x, y = px(dirX * radius * layout.tileSize, dirZ * radius * layout.tileSize)
 			Canvas.blend(canvas, x, y, { 255, 255, 255 }, 0.55)
 		end
+	end
+
+	-- Cosmetic decor (flowers, bushes, pebbles) as small dots.
+	for _, item in decorPlan do
+		local x, y = px(item.x, item.z)
+		Canvas.circle(canvas, x, y, if item.kind == "bush" then 1.6 else 1, rgb(item.color))
 	end
 
 	for _, prop in layout.props do
@@ -470,6 +477,19 @@ do
 						)
 					end
 				end
+			end,
+		})
+	end
+
+	for _, item in decorPlan do
+		local d = item
+		table.insert(drawables, {
+			depth = d.x + d.z + 0.5,
+			draw = function()
+				local color = rgb(d.color)
+				local r = (if d.kind == "bush" then 1.3 elseif d.kind == "pebble" then 0.8 else 0.5) * d.scale
+				local h = (if d.kind == "flower" then 1.9 elseif d.kind == "pebble" then 0.8 else 1.8) * d.scale
+				box(d.x - r, d.x + r, d.z - r, d.z + r, d.y, d.y + h, color, Canvas.shade(color, 0.8))
 			end,
 		})
 	end

@@ -176,4 +176,53 @@ return function()
 			end
 		end)
 	end)
+	describe("MapBuilder.decorPlan", function()
+		local layout = MapLayout.generate(GameConfig.Map)
+		local decor = MapBuilder.decorPlan(layout)
+
+		it("scatters a bounded amount of decor, deterministically", function()
+			expect(#decor > 300).to.equal(true)
+			expect(#decor <= MapBuilder.MAX_DECOR).to.equal(true)
+			local again = MapBuilder.decorPlan(layout)
+			expect(#again).to.equal(#decor)
+			for index, item in decor do
+				expect(again[index].x).to.equal(item.x)
+				expect(again[index].kind).to.equal(item.kind)
+			end
+		end)
+
+		it("stays on ground tiles, off the plaza, lava and jump pads", function()
+			for _, item in decor do
+				local tile = MapLayout.tileAt(layout, item.x, item.z)
+				assert(tile, "decor outside the island")
+				expect(tile.tier > 0).to.equal(true)
+				expect(tile.kind).to.equal("ground")
+				expect(item.y).to.equal(tile.height)
+				for _, pad in layout.jumpPads do
+					local dx, dz = item.x - pad.position.x, item.z - pad.position.z
+					expect(math.sqrt(dx * dx + dz * dz) >= MapBuilder.DECOR_PAD_CLEARANCE).to.equal(true)
+				end
+			end
+		end)
+
+		it("builds decor that nothing can collide with or hit", function()
+			local container = Instance.new("Folder")
+			local writer = {
+				fillBlock = function() end,
+				setMaterialColor = function() end,
+			}
+			local result = MapBuilder.build(layout, container, writer :: any)
+			local folder = result.root:FindFirstChild("Decor") :: Folder
+			assert(folder, "Decor folder expected")
+			local parts = folder:GetChildren()
+			expect(#parts >= #decor).to.equal(true)
+			for _, child in parts do
+				local part = child :: BasePart
+				expect(part.CanCollide).to.equal(false)
+				expect(part.CanQuery).to.equal(false)
+				expect(part.Anchored).to.equal(true)
+			end
+			container:Destroy()
+		end)
+	end)
 end

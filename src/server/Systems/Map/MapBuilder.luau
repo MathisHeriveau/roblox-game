@@ -16,11 +16,16 @@
 	sand with sandstone, basalt with slate), over a band of earth/sandstone that shows on cliffs,
 	over rock. Heights never change. Lava material appears ONLY on lava tiles (the ones that
 	burn): no decorative lava that would lie to the player.
+
+	Decor (MapBuilder.decorPlan, pure): flowers, bushes, dry bushes and pebbles scattered on ground
+	tiles so the land between props is not bare. Cosmetic only: no collision, no queries, never
+	on the plaza, lava or jump pads, and never crystal-like (shards are the collectibles).
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MapLayout = require(script.Parent.MapLayout)
+local Prng = require(ReplicatedStorage.Shared.Utils.Prng)
 local ShardVisuals = require(ReplicatedStorage.Shared.Game.ShardVisuals)
 local Zones = require(ReplicatedStorage.Shared.Config.Zones)
 
@@ -57,6 +62,18 @@ local EXTRA_COLORS: { [Enum.Material]: Color3 } = {
 	[Enum.Material.Slate] = Color3.fromRGB(86, 64, 92),
 }
 
+export type DecorKind = "flower" | "bush" | "dryBush" | "pebble"
+
+export type Decor = {
+	kind: DecorKind,
+	x: number,
+	y: number,
+	z: number,
+	yaw: number,
+	scale: number,
+	color: Color3,
+}
+
 export type TilePlan = {
 	tile: MapLayout.Tile,
 	-- SURFACE_DIVISIONS x SURFACE_DIVISIONS materials, row by row (index = row * n + column + 1,
@@ -65,7 +82,29 @@ export type TilePlan = {
 	band: Enum.Material,
 }
 
+-- Decor per ground tile, by zone tier: average count and the kind mix (cumulative chances).
+local DECOR_DENSITY: { [number]: number } = { [1] = 1.6, [2] = 0.5, [3] = 0.4, [4] = 1.4 }
+local DECOR_KINDS: { [number]: { { kind: DecorKind, upTo: number } } } = {
+	[1] = { { kind = "flower", upTo = 0.5 }, { kind = "bush", upTo = 0.85 }, { kind = "pebble", upTo = 1 } },
+	[2] = { { kind = "dryBush", upTo = 0.6 }, { kind = "pebble", upTo = 1 } },
+	[3] = { { kind = "pebble", upTo = 1 } },
+	[4] = { { kind = "flower", upTo = 0.55 }, { kind = "bush", upTo = 0.9 }, { kind = "pebble", upTo = 1 } },
+}
+local FLOWER_COLORS = {
+	Color3.fromRGB(255, 120, 180),
+	Color3.fromRGB(255, 220, 80),
+	Color3.fromRGB(250, 250, 255),
+	Color3.fromRGB(190, 130, 255),
+	Color3.fromRGB(120, 200, 255),
+}
+-- Shards land near tile centres and jump pads need a clear look: decor keeps away from both.
+local DECOR_CENTRE_CLEARANCE = 3
+local DECOR_PAD_CLEARANCE = 7
+local MAX_DECOR = 1200
+
 local MapBuilder = {
+	MAX_DECOR = MAX_DECOR,
+	DECOR_PAD_CLEARANCE = DECOR_PAD_CLEARANCE,
 	TERRAIN_SURFACE_OFFSET = TERRAIN_SURFACE_OFFSET,
 	SURFACE_DIVISIONS = SURFACE_DIVISIONS,
 	BAND_THICKNESS = BAND_THICKNESS,
@@ -248,6 +287,119 @@ local function buildTerrain(layout: MapLayout.Layout, writer: TerrainWriter)
 				ROCK_MATERIAL
 			)
 		end
+	end
+end
+
+--------------------------------------------------------------------------------------------------
+-- Decor
+--------------------------------------------------------------------------------------------------
+
+local function decorColor(kind: DecorKind, tier: number, rng: Prng.Prng): Color3
+	if kind == "flower" then
+		return FLOWER_COLORS[rng:nextInteger(1, #FLOWER_COLORS)]
+	elseif kind == "bush" then
+		return Color3.fromRGB(56, 150 + rng:nextInteger(-12, 18), 66)
+	elseif kind == "dryBush" then
+		return Color3.fromRGB(196, 168, 96)
+	end
+	-- Pebbles take the ground's tone: sandstone in the desert, basalt-grey elsewhere.
+	return if tier == 2 then Color3.fromRGB(206, 150, 96) else Color3.fromRGB(104, 92, 120)
+end
+
+-- Pure, deterministic scatter of cosmetic decor over ground tiles.
+function MapBuilder.decorPlan(layout: MapLayout.Layout): { Decor }
+	local rng = Prng.new(layout.seed + 7717)
+	local decor: { Decor } = {}
+	local half = layout.tileSize / 2 - 1.5
+	local function nearPad(x: number, z: number): boolean
+		for _, pad in layout.jumpPads do
+			local dx, dz = x - pad.position.x, z - pad.position.z
+			if dx * dx + dz * dz < DECOR_PAD_CLEARANCE * DECOR_PAD_CLEARANCE then
+				return true
+			end
+		end
+		return false
+	end
+	for _, tile in layout.tiles do
+		local density = DECOR_DENSITY[tile.tier]
+		if density and tile.kind == "ground" then
+			-- Whole part of the density, plus one more with the fractional chance.
+			local count = math.floor(density) + (if rng:nextNumber() < density % 1 then 1 else 0)
+			for _ = 1, count do
+				local dx, dz = rng:nextRange(-half, half), rng:nextRange(-half, half)
+				local x, z = tile.x + dx, tile.z + dz
+				if dx * dx + dz * dz >= DECOR_CENTRE_CLEARANCE ^ 2 and not nearPad(x, z) and #decor < MAX_DECOR then
+					local roll = rng:nextNumber()
+					local kind: DecorKind = "pebble"
+					for _, option in DECOR_KINDS[tile.tier] do
+						if roll <= option.upTo then
+							kind = option.kind
+							break
+						end
+					end
+					table.insert(decor, {
+						kind = kind,
+						x = x,
+						y = tile.height,
+						z = z,
+						yaw = rng:nextRange(0, math.pi * 2),
+						scale = rng:nextRange(0.75, 1.3),
+						color = decorColor(kind, tile.tier, rng),
+					})
+				end
+			end
+		end
+	end
+	return decor
+end
+
+local function decorPart(props: { [string]: any }, parent: Instance): Part
+	local instance = part(props, parent)
+	instance.CanCollide = false
+	instance.CanQuery = false
+	instance.CastShadow = false
+	instance.Material = Enum.Material.SmoothPlastic
+	return instance
+end
+
+local function buildDecor(item: Decor, parent: Instance)
+	local s = item.scale
+	local base = CFrame.new(item.x, item.y, item.z) * CFrame.Angles(0, item.yaw, 0)
+	if item.kind == "flower" then
+		decorPart({
+			Name = "Stem",
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(1.4 * s, 0.22, 0.22),
+			CFrame = base * CFrame.new(0, 0.7 * s, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = Color3.fromRGB(70, 160, 70),
+		}, parent)
+		decorPart({
+			Name = "Bloom",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.one * 0.8 * s,
+			CFrame = base * CFrame.new(0, 1.5 * s, 0),
+			Color = item.color,
+		}, parent)
+	elseif item.kind == "bush" or item.kind == "dryBush" then
+		local sizes: { number } = if item.kind == "bush" then { 2.4, 1.9, 1.6 } else { 1.6, 1.3 }
+		local offsets = { Vector3.new(0, 0, 0), Vector3.new(1, -0.2, 0.5), Vector3.new(-0.8, -0.3, -0.6) }
+		for index, size in sizes do
+			decorPart({
+				Name = "Bush",
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.one * size * s,
+				CFrame = base * CFrame.new(offsets[index] * s + Vector3.new(0, size * s * 0.3, 0)),
+				Color = if index == 1 then item.color else item.color:Lerp(Color3.new(1, 1, 1), 0.08 * index),
+			}, parent)
+		end
+	else
+		decorPart({
+			Name = "Pebble",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(1.7, 0.9, 1.3) * s,
+			CFrame = base * CFrame.new(0, 0.2 * s, 0),
+			Color = item.color,
+		}, parent)
 	end
 end
 
@@ -621,6 +773,11 @@ function MapBuilder.build(layout: MapLayout.Layout, parent: Instance, writer: Te
 		if builder then
 			builder(prop, props)
 		end
+	end
+
+	local decor = folder("Decor", root)
+	for _, item in MapBuilder.decorPlan(layout) do
+		buildDecor(item, decor)
 	end
 
 	local landmarks = folder("Landmarks", root)
