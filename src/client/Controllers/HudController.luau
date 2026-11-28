@@ -250,9 +250,10 @@ function HudController.start(_self: any)
 		rescale()
 	end
 
-	coinPill.plusButton.Activated:Connect(ShopController.open)
-	shopButton.root.Activated:Connect(ShopController.open)
-	rebirthButton.root.Activated:Connect(ShopController.open)
+	coinPill.plusButton.Activated:Connect(ShopController.openAt("upgrades"))
+	shopButton.root.Activated:Connect(ShopController.openAt("upgrades"))
+	-- REBIRTH used to open the shop on the upgrades, the rebirth card far below the fold.
+	rebirthButton.root.Activated:Connect(ShopController.openAt("rebirth"))
 
 	StateController.changed:connect(render)
 	local state = StateController.get()

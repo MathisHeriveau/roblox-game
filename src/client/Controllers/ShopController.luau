@@ -200,7 +200,10 @@ local function buy(kind: string, id: string?)
 	end
 end
 
-local function section(text: string, order: number)
+-- Section headers by key, so a caller can open the shop on its section (REBIRTH → rebirth card).
+local sections: { [string]: TextLabel } = {}
+
+local function section(key: string, text: string, order: number)
 	local label = Create("TextLabel", {
 		Name = "Section",
 		LayoutOrder = order,
@@ -214,6 +217,20 @@ local function section(text: string, order: number)
 	}) :: TextLabel
 	Theme.textOutline(label, 2)
 	label.Parent = list
+	sections[key] = label
+end
+
+-- Scrolls the list so the `key` section header sits at the top (once the layout has run).
+local function scrollTo(key: string?)
+	local header = if key then sections[key] else nil
+	if header == nil then
+		list.CanvasPosition = Vector2.zero
+		return
+	end
+	task.defer(function()
+		local offset = header.AbsolutePosition.Y - list.AbsolutePosition.Y + list.CanvasPosition.Y
+		list.CanvasPosition = Vector2.new(0, math.max(0, offset))
+	end)
 end
 
 local function addCard(order: number, view: (PlayerState) -> ShopCard.CardView, onBuy: () -> ())
@@ -228,10 +245,18 @@ function ShopController.isOpen(): boolean
 	return gui.Enabled
 end
 
-function ShopController.open()
+-- Opens the shop, scrolled to a section: "upgrades" (default), "zones" or "rebirth".
+function ShopController.open(focus: string?)
 	render(StateController.get())
 	Modal.opened("Shop", ShopController.close)
 	gui.Enabled = true
+	scrollTo(focus)
+end
+
+function ShopController.openAt(focus: string): () -> ()
+	return function()
+		ShopController.open(focus)
+	end
 end
 
 function ShopController.close()
@@ -347,13 +372,13 @@ function ShopController.init(_self: any)
 		order += 1
 		return order
 	end
-	section("⚡ UPGRADES", nextOrder())
+	section("upgrades", "⚡ UPGRADES", nextOrder())
 	for _, upgrade in Upgrades.list do
 		addCard(nextOrder(), upgradeView(upgrade), function()
 			buy("upgrade", upgrade.id)
 		end)
 	end
-	section("🗺️ ZONES", nextOrder())
+	section("zones", "🗺️ ZONES", nextOrder())
 	for _, zone in Zones.list do
 		if zone.tier > 1 then
 			addCard(nextOrder(), zoneView(zone), function()
@@ -361,7 +386,7 @@ function ShopController.init(_self: any)
 			end)
 		end
 	end
-	section("🌟 REBIRTH", nextOrder())
+	section("rebirth", "🌟 REBIRTH", nextOrder())
 	addCard(nextOrder(), rebirthView, function()
 		buy("rebirth", nil)
 	end)
