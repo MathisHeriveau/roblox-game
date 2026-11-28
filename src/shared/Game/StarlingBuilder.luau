@@ -11,6 +11,12 @@
 
 	Tagged "Starling" so clients animate them locally. `cframe` is the star centre; its -Z axis is
 	the facing direction. Preview the result with `make preview-models`.
+
+	Real meshes: when ReplicatedStorage.Models.Starling exists (assets/models/starling.fbx from
+	tools/models/starling.py, imported in Studio and saved as assets/models/roblox/Starling.rbxm),
+	the Starling is cloned from its MeshParts instead (Body, eyes, mouth, cheeks, accessories),
+	keeping only the pieces of the rarity and colouring them. Otherwise the Part version above.
+	An optional "YawOffset" attribute (degrees) on the template fixes an import's facing.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -105,7 +111,124 @@ local function openEye(model: Model, cframe: CFrame)
 	ball(model, "EyeShine", cframe * CFrame.new(-0.13, 0.16, -0.28), 0.26, WHITE, Enum.Material.Neon)
 end
 
-function StarlingBuilder.build(rarityId: number, shiny: boolean, cframe: CFrame): Model
+-- Mesh pieces shown for a rarity: expression (closed "^" eyes for Common, a wink for Epic) and
+-- accessories (gem for Rare / Epic / Mythic, crown for Legendary, halo and wings for Cosmic).
+function StarlingBuilder.meshPieces(rarityId: number): { string }
+	local pieces = { "Body", "Mouth", "Tongue", "CheekL", "CheekR" }
+	if rarityId == 1 then
+		table.insert(pieces, "ClosedEyeL")
+		table.insert(pieces, "ClosedEyeR")
+	elseif rarityId == 3 then
+		table.insert(pieces, "EyeL")
+		table.insert(pieces, "ShineL")
+		table.insert(pieces, "ClosedEyeR")
+	else
+		for _, name in { "EyeL", "EyeR", "ShineL", "ShineR" } do
+			table.insert(pieces, name)
+		end
+	end
+	if rarityId == 2 or rarityId == 3 or rarityId == 5 then
+		table.insert(pieces, "Gem")
+	elseif rarityId == 4 then
+		table.insert(pieces, "Crown")
+		table.insert(pieces, "CrownGem")
+	elseif rarityId == 6 then
+		table.insert(pieces, "Halo")
+		table.insert(pieces, "WingL")
+		table.insert(pieces, "WingR")
+	end
+	return pieces
+end
+
+-- The imported mesh template, if any (`container` overrides ReplicatedStorage.Models in tests).
+function StarlingBuilder.meshTemplate(container: Instance?): Model?
+	local models = container or ReplicatedStorage:FindFirstChild("Models")
+	local template = models and models:FindFirstChild("Starling")
+	if template and template:IsA("Model") and template:FindFirstChild("Body") then
+		return template
+	end
+	return nil
+end
+
+local function meshStyle(name: string, bodyColor: Color3, accent: Color3): (Color3, Enum.Material, number)
+	if name == "Body" then
+		return bodyColor, Enum.Material.SmoothPlastic, 0
+	elseif string.sub(name, 1, 3) == "Eye" or string.sub(name, 1, 9) == "ClosedEye" then
+		return EYE_COLOR, Enum.Material.SmoothPlastic, 0
+	elseif string.sub(name, 1, 5) == "Shine" then
+		return WHITE, Enum.Material.Neon, 0
+	elseif name == "Mouth" then
+		return MOUTH_COLOR, Enum.Material.SmoothPlastic, 0
+	elseif name == "Tongue" then
+		return TONGUE_COLOR, Enum.Material.SmoothPlastic, 0
+	elseif string.sub(name, 1, 5) == "Cheek" then
+		return BLUSH_COLOR, Enum.Material.SmoothPlastic, 0
+	elseif name == "Crown" or name == "Halo" then
+		return GOLD, Enum.Material.Neon, 0
+	elseif name == "CrownGem" then
+		return Color3.fromRGB(255, 60, 110), Enum.Material.Neon, 0
+	elseif string.sub(name, 1, 4) == "Wing" then
+		return accent, Enum.Material.Neon, 0.3
+	end
+	return accent, Enum.Material.Neon, 0 -- Gem
+end
+
+local function buildFromMeshes(template: Model, rarityId: number, shiny: boolean, cframe: CFrame): Model
+	local rarity = Rarities.get(rarityId)
+	local bodyColor = BODY_OVERRIDE[rarityId] or rarity.color
+	local accent = ACCENT[rarityId] or rarity.color
+	local model = Instance.new("Model")
+	model.Name = `{rarity.key}Starling`
+	model:SetAttribute("Rarity", rarityId)
+	model:SetAttribute("Shiny", shiny)
+
+	local templateBody = template:FindFirstChild("Body") :: BasePart
+	local yaw = template:GetAttribute("YawOffset")
+	local origin = templateBody.CFrame * CFrame.Angles(0, math.rad(if type(yaw) == "number" then yaw else 0), 0)
+	local body: BasePart? = nil
+	for _, name in StarlingBuilder.meshPieces(rarityId) do
+		local source = template:FindFirstChild(name)
+		if source and source:IsA("BasePart") then
+			local copy = source:Clone()
+			copy.Anchored = true
+			copy.CanCollide = false
+			copy.CanTouch = false
+			copy.CanQuery = false
+			copy.CastShadow = name == "Body"
+			-- Same layout as in the template, around the requested centre.
+			copy.CFrame = cframe * origin:ToObjectSpace(source.CFrame)
+			local color, material, transparency = meshStyle(name, bodyColor, accent)
+			copy.Color = color
+			copy.Material = material
+			copy.Transparency = transparency
+			copy.Parent = model
+			if name == "Body" then
+				body = copy
+			end
+		end
+	end
+	local core = body :: BasePart
+	if shiny then
+		local sparkles = Instance.new("Sparkles")
+		sparkles.SparkleColor = rarity.color
+		sparkles.Parent = core
+	end
+	local light = Instance.new("PointLight")
+	light.Color = rarity.color
+	light.Range = 10
+	light.Brightness = 1.6
+	light.Parent = core
+	model.PrimaryPart = core
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	model:AddTag(StarlingBuilder.TAG)
+	return model
+end
+
+function StarlingBuilder.build(rarityId: number, shiny: boolean, cframe: CFrame, template: Model?): Model
+	local meshes = template or StarlingBuilder.meshTemplate()
+	if meshes then
+		return buildFromMeshes(meshes, rarityId, shiny, cframe)
+	end
 	local rarity = Rarities.get(rarityId)
 	local bodyColor = BODY_OVERRIDE[rarityId] or rarity.color
 	local accent = ACCENT[rarityId] or rarity.color

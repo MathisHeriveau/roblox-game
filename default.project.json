@@ -20,6 +20,9 @@
       },
       "Packages": {
         "$path": { "optional": "Packages" }
+      },
+      "Models": {
+        "$path": { "optional": "assets/models/roblox" }
       }
     },
     "ServerScriptService": {

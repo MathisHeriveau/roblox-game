@@ -88,6 +88,74 @@ return function()
 				model:Destroy()
 			end
 		end)
+
+		-- A stand-in for the imported Blender meshes (assets/models/starling.fbx): Parts named like
+		-- the mesh pieces, laid out around a Body that is not at the origin.
+		local function fakeTemplate(): Model
+			local template = Instance.new("Model")
+			template.Name = "Starling"
+			local names = { "Body", "EyeL", "EyeR", "ShineL", "ShineR", "ClosedEyeL", "ClosedEyeR", "Mouth", "Tongue" }
+			for _, name in { "CheekL", "CheekR", "Crown", "CrownGem", "Halo", "WingL", "WingR", "Gem" } do
+				table.insert(names, name)
+			end
+			for index, name in names do
+				local piece = Instance.new("Part")
+				piece.Name = name
+				piece.CFrame = CFrame.new(50, 10, 50) * CFrame.new(index * 0.1, if name == "Halo" then 3 else 0, -1)
+				if name == "Body" then
+					piece.CFrame = CFrame.new(50, 10, 50)
+				end
+				piece.Parent = template
+			end
+			return template
+		end
+
+		it("uses the imported meshes when they exist, keeping only the rarity's pieces", function()
+			local template = fakeTemplate()
+			for _, rarity in Rarities.list do
+				local model = StarlingBuilder.build(rarity.id, false, CFrame.new(1, 2, 3), template)
+				local expected: { [string]: boolean } = {}
+				for _, name in StarlingBuilder.meshPieces(rarity.id) do
+					expected[name] = true
+				end
+				local count = 0
+				for _, child in model:GetChildren() do
+					if child:IsA("BasePart") then
+						count += 1
+						expect(expected[child.Name]).to.equal(true)
+						expect(child.Anchored).to.equal(true)
+						expect(child.CanCollide).to.equal(false)
+					end
+				end
+				expect(count).to.equal(#StarlingBuilder.meshPieces(rarity.id))
+				local body = model.PrimaryPart :: BasePart
+				expect(body.Name).to.equal("Body")
+				expect(body.CFrame.Position.X).to.be.near(1, 1e-3)
+				expect(body.CFrame.Position.Y).to.be.near(2, 1e-3)
+				expect(model:HasTag(ShardVisuals.STARLING_TAG)).to.equal(true)
+				if rarity.id ~= 6 then
+					expect(body.Color).to.equal(rarity.color)
+				end
+				-- Pieces keep their layout around the body.
+				local halo = model:FindFirstChild("Halo") :: BasePart?
+				if halo then
+					expect(halo.CFrame.Position.Y - body.CFrame.Position.Y).to.be.near(3, 1e-3)
+				end
+				model:Destroy()
+			end
+			template:Destroy()
+		end)
+
+		it("picks the expression and accessories per rarity", function()
+			local function has(rarity: number, name: string): boolean
+				return table.find(StarlingBuilder.meshPieces(rarity), name) ~= nil
+			end
+			expect(has(1, "ClosedEyeL") and has(1, "ClosedEyeR") and not has(1, "EyeL")).to.equal(true)
+			expect(has(3, "EyeL") and has(3, "ClosedEyeR") and not has(3, "EyeR")).to.equal(true)
+			expect(has(4, "Crown") and has(4, "CrownGem")).to.equal(true)
+			expect(has(6, "Halo") and has(6, "WingL") and has(6, "WingR")).to.equal(true)
+			expect(has(2, "Gem") and not has(1, "Gem") and not has(4, "Gem")).to.equal(true)
+		end)
 	end)
 
 	describe("ShardBuilder", function()
