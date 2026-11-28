@@ -34,3 +34,7 @@ Studio play-solo session driven through the Studio MCP (`test.rbxl`, synced with
 | 16 | HUD | The coin counter and level badge sat under the Roblox chat window (top-left), hidden whenever chat shows. The left column (coins, level, lock pill, menu rail) is now one stack below the chat region. | FIXED (ed833d9) |
 | 17 | Sky islands | Jump pad island 1: launched from (224, 15, 48), landed at (349, 33, 64) next to the target (352, 33, 64); "BACK TO LAND" return pad present. | OK |
 | 18 | Hazards | Void: falling off the island kills below -110 and respawns at the plot; lava: 25 HP/s, death after ~4.7 s. | OK |
+| 19 | Shards | The 🔒 badge over shards of locked zones never rendered (BillboardGui under a Model, no Adornee; AlwaysOnTop layer also invisible in Studio). | FIXED (f7a9210) |
+| 20 | Onboarding | Walking into a 🔒 shard did nothing and said nothing. Now a toast names the zone to unlock and its price. | FIXED (f7a9210) |
+| 21 | Feedback | Level ups and coin gains were silent. Now: "LEVEL UP!" toast + rising chime + badge pop; coin pill pops on gains. | FIXED (7d282e8) |
+| 22 | Audio | Only 11 built-in sounds exist in `content/sounds` (jump, land, explosion, oof/ouch, slider, water, swim, falling, footsteps, get up); there is no music and no ambience. Cues are now told apart by pitch; real music/ambience needs uploaded audio (user action). | WONTFIX (needs assets) |
