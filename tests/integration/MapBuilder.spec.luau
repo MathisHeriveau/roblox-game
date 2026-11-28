@@ -58,37 +58,49 @@ return function()
 			expect(colors[Enum.Material.CrackedLava]).to.be.ok()
 		end)
 
-		it("fills a surface block (and rock underneath) for every tile", function()
-			local surfaces = 0
-			for _, fill in fills do
-				if fill.material ~= Enum.Material.Rock then
-					surfaces += 1
-				end
-				expect(fill.size.X).to.equal(layout.tileSize)
-				expect(fill.size.Y > 0).to.equal(true)
-			end
-			expect(surfaces).to.equal(#layout.tiles)
-			expect(#fills > #layout.tiles).to.equal(true)
-		end)
-
-		-- Regression: Roblox renders a filled block's top half a voxel (2 studs) higher, so every
-		-- surface stood 2 studs above the layout (plot floors buried, lava out of reach). The
-		-- engine side is checked by TerrainSurface.spec (Studio only).
-		it("fills each surface block so the rendered surface lands on the tile height", function()
-			local tile = layout.tiles[1]
-			local checked = 0
+		-- Surface fill = the layer whose rendered top lands on the tile height. Regression: Roblox
+		-- renders a filled block's top half a voxel (2 studs) higher, so every surface stood 2 studs
+		-- above the layout (plot floors buried, lava out of reach). Engine side: TerrainSurface.spec.
+		local function surfaceArea(): { [MapLayout.Tile]: number }
+			local covered: { [MapLayout.Tile]: number } = {}
 			for _, fill in fills do
 				local position = fill.cframe.Position
-				if position.X == tile.x and position.Z == tile.z and fill.material ~= Enum.Material.Rock then
-					expect(position.Y + fill.size.Y / 2 + MapBuilder.TERRAIN_SURFACE_OFFSET).to.be.near(
-						tile.height,
-						1e-6
-					)
-					checked += 1
+				local tile = MapLayout.tileAt(layout, position.X, position.Z)
+				local top = position.Y + fill.size.Y / 2 + MapBuilder.TERRAIN_SURFACE_OFFSET
+				if tile and math.abs(top - tile.height) < 1e-3 then
+					covered[tile] = (covered[tile] or 0) + fill.size.X * fill.size.Z
 				end
 			end
-			expect(checked).to.equal(1)
+			return covered
+		end
+
+		it("covers every tile's surface exactly, at the tile height", function()
+			local covered = surfaceArea()
+			for _, tile in layout.tiles do
+				expect(covered[tile]).to.be.near(layout.tileSize * layout.tileSize, 1e-6)
+			end
 			expect(MapBuilder.TERRAIN_SURFACE_OFFSET).to.equal(2)
+		end)
+
+		it("fills earth or rock under every surface, down to the tile bottom", function()
+			local lowest: { [MapLayout.Tile]: number } = {}
+			for _, fill in fills do
+				local position = fill.cframe.Position
+				local tile = MapLayout.tileAt(layout, position.X, position.Z)
+				if tile then
+					local bottom = position.Y - fill.size.Y / 2
+					lowest[tile] = math.min(lowest[tile] or math.huge, bottom)
+				end
+			end
+			for _, tile in layout.tiles do
+				expect(lowest[tile]).to.be.near(tile.bottom, 1e-3)
+			end
+		end)
+
+		it("paints every material it uses", function()
+			for _, fill in fills do
+				expect(colors[fill.material]).to.be.ok()
+			end
 		end)
 
 		it("parents one Map folder with props, landmarks, bounds and the plaza spawn", function()
@@ -114,6 +126,54 @@ return function()
 			end
 			expect(result.spawnLocation.Neutral).to.equal(true)
 			expect(result.root:GetAttribute("Seed")).to.equal(layout.seed)
+		end)
+	end)
+	describe("MapBuilder.terrainPlan", function()
+		local layout = MapLayout.generate(GameConfig.Map)
+		local plans = MapBuilder.terrainPlan(layout)
+		local cells = MapBuilder.SURFACE_DIVISIONS * MapBuilder.SURFACE_DIVISIONS
+
+		it("puts lava only on the tiles that burn, and fully on them", function()
+			for _, plan in plans do
+				expect(#plan.surface).to.equal(cells)
+				for _, material in plan.surface do
+					expect(material == Enum.Material.CrackedLava).to.equal(plan.tile.kind == "lava")
+				end
+			end
+		end)
+
+		it("mixes materials inside zones instead of one flat colour", function()
+			local perTier: { [number]: { [Enum.Material]: boolean } } = {}
+			for _, plan in plans do
+				if plan.tile.kind ~= "lava" then
+					perTier[plan.tile.tier] = perTier[plan.tile.tier] or {}
+					for _, material in plan.surface do
+						perTier[plan.tile.tier][material] = true
+					end
+				end
+			end
+			for tier = 1, #Zones.list do
+				local materials: { [Enum.Material]: boolean } = perTier[tier] or {}
+				local count = 0
+				for _ in materials do
+					count += 1
+				end
+				expect(count >= 2).to.equal(true)
+				-- The zone's own material stays the main one.
+				expect(materials[Zones.get(tier).topMaterial]).to.equal(true)
+			end
+		end)
+
+		it("puts earth under grass and is deterministic", function()
+			local again = MapBuilder.terrainPlan(layout)
+			for index, plan in plans do
+				if plan.tile.tier == 1 and plan.tile.kind ~= "lava" then
+					expect(plan.band).to.equal(Enum.Material.Ground)
+				end
+				for cell, material in plan.surface do
+					expect(again[index].surface[cell]).to.equal(material)
+				end
+			end
 		end)
 	end)
 end

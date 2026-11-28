@@ -43,6 +43,7 @@ local Zones = runtime.require(ReplicatedStorage.Shared.Config.Zones)
 local Rarities = runtime.require(ReplicatedStorage.Shared.Config.Rarities)
 local Prng = runtime.require(ReplicatedStorage.Shared.Utils.Prng)
 local MapLayout = runtime.require(Server.Systems.Map.MapLayout)
+local MapBuilder = runtime.require(Server.Systems.Map.MapBuilder)
 local BaseLayout = runtime.require(Server.Systems.Base.BaseLayout)
 local SkySchedule = runtime.require(Server.Systems.Shards.SkySchedule)
 
@@ -51,6 +52,13 @@ local function rgb(color: any): Canvas.Color
 end
 
 local layout = MapLayout.generate(GameConfig.Map)
+-- The real terrain materials MapBuilder fills (surface cells and the band under them).
+local terrainPlans = MapBuilder.terrainPlan(layout)
+local materialColors: { [any]: Canvas.Color } = {}
+for material, color in MapBuilder.materialColors() do
+	materialColors[material] = rgb(color)
+end
+local CELLS = MapBuilder.SURFACE_DIVISIONS
 local plots = BaseLayout.generate(GameConfig.Base)
 local impacts = SkySchedule.meteorImpacts(Prng.new(7), layout, 24, function()
 	return true
@@ -193,10 +201,21 @@ do
 	end
 
 	local half = layout.tileSize / 2
-	for _, tile in layout.tiles do
-		local x0, y0 = px(tile.x - half, tile.z - half)
-		local x1, y1 = px(tile.x + half, tile.z + half)
-		Canvas.fillRect(canvas, x0, y0, x1 - 1, y1 - 1, Canvas.shade(tileColor(tile), heightShade(tile)))
+	local cellSize = layout.tileSize / CELLS
+	for _, plan in terrainPlans do
+		local tile = plan.tile
+		local shade = heightShade(tile)
+		for row = 0, CELLS - 1 do
+			for column = 0, CELLS - 1 do
+				local material = plan.surface[row * CELLS + column + 1]
+				local cx0 = tile.x - half + column * cellSize
+				local cz0 = tile.z - half + row * cellSize
+				local x0, y0 = px(cx0, cz0)
+				local x1, y1 = px(cx0 + cellSize, cz0 + cellSize)
+				local color = materialColors[material] or tileColor(tile)
+				Canvas.fillRect(canvas, x0, y0, math.max(x0, x1 - 1), math.max(y0, y1 - 1), Canvas.shade(color, shade))
+			end
+		end
 	end
 
 	-- Zone borders (warped exactly like Zones.tierAt).
@@ -404,20 +423,23 @@ do
 	local drawables: { Drawable } = {}
 	local half = layout.tileSize / 2
 
-	for _, tile in layout.tiles do
+	local cellSize = layout.tileSize / CELLS
+	for _, plan in terrainPlans do
+		local tile = plan.tile
 		table.insert(drawables, {
 			depth = tile.x + tile.z,
 			draw = function()
-				local color = Canvas.shade(tileColor(tile), heightShade(tile))
-				-- Rock column, then the surface band on top of it.
+				local shade = heightShade(tile)
+				local band = materialColors[plan.band] or ROCK_COLOR
+				-- Rock column, the band (earth / sandstone) that shows on cliffs, then the cells.
 				box(
 					tile.x - half,
 					tile.x + half,
 					tile.z - half,
 					tile.z + half,
 					tile.bottom,
-					tile.height - 4,
-					color,
+					tile.height - 8,
+					ROCK_COLOR,
 					ROCK_COLOR
 				)
 				box(
@@ -425,11 +447,29 @@ do
 					tile.x + half,
 					tile.z - half,
 					tile.z + half,
+					tile.height - 8,
 					tile.height - 4,
-					tile.height,
-					color,
-					Canvas.shade(color, 0.85)
+					band,
+					band
 				)
+				for row = 0, CELLS - 1 do
+					for column = 0, CELLS - 1 do
+						local material = plan.surface[row * CELLS + column + 1]
+						local color = Canvas.shade(materialColors[material] or tileColor(tile), shade)
+						local cx0 = tile.x - half + column * cellSize
+						local cz0 = tile.z - half + row * cellSize
+						box(
+							cx0,
+							cx0 + cellSize,
+							cz0,
+							cz0 + cellSize,
+							tile.height - 4,
+							tile.height,
+							color,
+							Canvas.shade(color, 0.85)
+						)
+					end
+				end
 			end,
 		})
 	end

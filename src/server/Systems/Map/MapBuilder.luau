@@ -10,6 +10,12 @@
 	block, at any height (measured in Studio, checked by TerrainSurface.spec). Surface blocks are
 	filled that much lower so the walkable surface sits exactly at each tile's layout height,
 	which everything else (plots, shards, pads, hazards) is placed against.
+
+	Look (MapBuilder.terrainPlan, pure): each tile's surface is split into SURFACE_DIVISIONS² cells
+	whose materials are mixed with smooth noise (meadow grass with leafy and dirt patches, desert
+	sand with sandstone, basalt with slate), over a band of earth/sandstone that shows on cliffs,
+	over rock. Heights never change. Lava material appears ONLY on lava tiles (the ones that
+	burn): no decorative lava that would lie to the player.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -37,9 +43,32 @@ local ROCK_MATERIAL = Enum.Material.Rock
 local ROCK_COLOR = Color3.fromRGB(92, 76, 146)
 local LAVA_MATERIAL = Enum.Material.CrackedLava
 local LAVA_COLOR = Color3.fromRGB(255, 92, 24)
+-- Layer between the surface and the rock, visible on cliffs and island edges.
+local BAND_THICKNESS = 4
+local SURFACE_DIVISIONS = 4
+-- Studs per noise period: patches a few cells wide, never salt-and-pepper.
+local NOISE_SCALE = 26
+
+-- Secondary materials used for patches and bands, with colours from the style sheet palette.
+local EXTRA_COLORS: { [Enum.Material]: Color3 } = {
+	[Enum.Material.Ground] = Color3.fromRGB(128, 88, 60),
+	[Enum.Material.Cobblestone] = Color3.fromRGB(128, 120, 172),
+	[Enum.Material.Sandstone] = Color3.fromRGB(226, 160, 92),
+	[Enum.Material.Slate] = Color3.fromRGB(86, 64, 92),
+}
+
+export type TilePlan = {
+	tile: MapLayout.Tile,
+	-- SURFACE_DIVISIONS x SURFACE_DIVISIONS materials, row by row (index = row * n + column + 1,
+	-- column along +X, row along +Z, starting at the tile's -X/-Z corner).
+	surface: { Enum.Material },
+	band: Enum.Material,
+}
 
 local MapBuilder = {
 	TERRAIN_SURFACE_OFFSET = TERRAIN_SURFACE_OFFSET,
+	SURFACE_DIVISIONS = SURFACE_DIVISIONS,
+	BAND_THICKNESS = BAND_THICKNESS,
 }
 
 function MapBuilder.terrainWriter(terrain: Terrain): TerrainWriter
@@ -77,13 +106,93 @@ end
 -- Terrain
 --------------------------------------------------------------------------------------------------
 
-local function topMaterial(tile: MapLayout.Tile): Enum.Material
-	if tile.tier == 0 then
-		return HUB_MATERIAL
-	elseif tile.kind == "lava" then
+-- Every terrain material the map uses and its colour (also read by tools/preview.luau).
+function MapBuilder.materialColors(): { [Enum.Material]: Color3 }
+	local colors: { [Enum.Material]: Color3 } = {
+		[HUB_MATERIAL] = HUB_COLOR,
+		[ROCK_MATERIAL] = ROCK_COLOR,
+		[LAVA_MATERIAL] = LAVA_COLOR,
+	}
+	for material, color in EXTRA_COLORS do
+		colors[material] = color
+	end
+	for _, zone in Zones.list do
+		colors[zone.topMaterial] = zone.topColor
+	end
+	return colors
+end
+
+-- Smooth noise in [0, 1] (deterministic: math.noise is the same everywhere).
+local function noise01(x: number, z: number, salt: number): number
+	return math.clamp(math.noise(x / NOISE_SCALE + salt * 17.3, z / NOISE_SCALE - salt * 9.1, salt * 0.37) + 0.5, 0, 1)
+end
+
+-- Material of one surface cell, given the tile and the cell's world centre.
+local function cellMaterial(tile: MapLayout.Tile, x: number, z: number, salt: number): Enum.Material
+	if tile.kind == "lava" then
 		return LAVA_MATERIAL
 	end
-	return Zones.get(tile.tier).topMaterial
+	local n = noise01(x, z, salt)
+	if tile.tier == 0 then
+		return if n > 0.78 then Enum.Material.Cobblestone else HUB_MATERIAL
+	end
+	local base = Zones.get(tile.tier).topMaterial
+	if base == Enum.Material.Grass then
+		if n > 0.72 then
+			return Enum.Material.LeafyGrass
+		elseif n < 0.18 then
+			return Enum.Material.Ground
+		end
+	elseif base == Enum.Material.Sand then
+		if n > 0.7 then
+			return Enum.Material.Sandstone
+		end
+	elseif base == Enum.Material.Basalt then
+		if n > 0.68 then
+			return Enum.Material.Slate
+		end
+	elseif base == Enum.Material.LeafyGrass then
+		if n > 0.74 then
+			return Enum.Material.Grass
+		elseif n < 0.14 then
+			return Enum.Material.Ground
+		end
+	end
+	return base
+end
+
+local function bandMaterial(tile: MapLayout.Tile): Enum.Material
+	if tile.tier == 0 then
+		return ROCK_MATERIAL
+	elseif tile.kind == "lava" then
+		return Enum.Material.Basalt
+	end
+	local base = Zones.get(tile.tier).topMaterial
+	if base == Enum.Material.Sand then
+		return Enum.Material.Sandstone
+	elseif base == Enum.Material.Basalt then
+		return Enum.Material.Basalt
+	end
+	return Enum.Material.Ground
+end
+
+-- Pure description of the terrain: one plan per tile (materials only; heights come from the layout).
+function MapBuilder.terrainPlan(layout: MapLayout.Layout): { TilePlan }
+	local plans: { TilePlan } = {}
+	local cell = layout.tileSize / SURFACE_DIVISIONS
+	local salt = (layout.seed % 997) / 997
+	for _, tile in layout.tiles do
+		local surface: { Enum.Material } = {}
+		local x0 = tile.x - layout.tileSize / 2 + cell / 2
+		local z0 = tile.z - layout.tileSize / 2 + cell / 2
+		for row = 0, SURFACE_DIVISIONS - 1 do
+			for column = 0, SURFACE_DIVISIONS - 1 do
+				table.insert(surface, cellMaterial(tile, x0 + column * cell, z0 + row * cell, salt))
+			end
+		end
+		table.insert(plans, { tile = tile, surface = surface, band = bandMaterial(tile) })
+	end
+	return plans
 end
 
 -- Surface block of a tile (top material layer), placed so the rendered surface is at tile.height.
@@ -93,19 +202,45 @@ function MapBuilder.surfaceBlock(tile: { x: number, z: number, height: number },
 end
 
 local function buildTerrain(layout: MapLayout.Layout, writer: TerrainWriter)
-	writer:setMaterialColor(HUB_MATERIAL, HUB_COLOR)
-	writer:setMaterialColor(ROCK_MATERIAL, ROCK_COLOR)
-	writer:setMaterialColor(LAVA_MATERIAL, LAVA_COLOR)
-	for _, zone in Zones.list do
-		writer:setMaterialColor(zone.topMaterial, zone.topColor)
+	for material, color in MapBuilder.materialColors() do
+		writer:setMaterialColor(material, color)
 	end
 
 	local size = layout.tileSize
-	for _, tile in layout.tiles do
-		local surfaceCFrame, surfaceSize = MapBuilder.surfaceBlock(tile, size)
-		writer:fillBlock(surfaceCFrame, surfaceSize, topMaterial(tile))
-		local rockTop = tile.height - TERRAIN_SURFACE_OFFSET - TOP_THICKNESS
-		local rockHeight = rockTop - tile.bottom
+	local cell = size / SURFACE_DIVISIONS
+	for _, plan in MapBuilder.terrainPlan(layout) do
+		local tile = plan.tile
+		local surfaceCFrame = MapBuilder.surfaceBlock(tile, size)
+		local surfaceY = surfaceCFrame.Position.Y
+		-- Surface cells, merged into runs of the same material along each row (fewer fills).
+		for row = 0, SURFACE_DIVISIONS - 1 do
+			local column = 0
+			while column < SURFACE_DIVISIONS do
+				local material = plan.surface[row * SURFACE_DIVISIONS + column + 1]
+				local run = 1
+				while
+					column + run < SURFACE_DIVISIONS
+					and plan.surface[row * SURFACE_DIVISIONS + column + run + 1] == material
+				do
+					run += 1
+				end
+				local x = tile.x - size / 2 + (column + run / 2) * cell
+				local z = tile.z - size / 2 + (row + 0.5) * cell
+				writer:fillBlock(CFrame.new(x, surfaceY, z), Vector3.new(run * cell, TOP_THICKNESS, cell), material)
+				column += run
+			end
+		end
+		-- Band (earth under grass, sandstone under sand...), then rock down to the tile bottom.
+		local bandTop = tile.height - TERRAIN_SURFACE_OFFSET - TOP_THICKNESS
+		local bandBottom = math.max(tile.bottom, bandTop - BAND_THICKNESS)
+		if bandTop - bandBottom > 0 then
+			writer:fillBlock(
+				CFrame.new(tile.x, (bandTop + bandBottom) / 2, tile.z),
+				Vector3.new(size, bandTop - bandBottom, size),
+				plan.band
+			)
+		end
+		local rockHeight = bandBottom - tile.bottom
 		if rockHeight > 0 then
 			writer:fillBlock(
 				CFrame.new(tile.x, tile.bottom + rockHeight / 2, tile.z),
