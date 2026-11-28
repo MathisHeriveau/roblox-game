@@ -2,6 +2,10 @@
 --[[
 	NotificationController — stacked toast notifications (server Notify + local messages).
 	Drawn under the shop modal (UI/Layers): purchase feedback is shown inside the shop instead.
+
+	Toasts stack upwards from just above the carry pill (bottom centre), newest at the bottom: the
+	top of the screen belongs to the HUD's banner column (countdowns, zone and comet banners),
+	whose height changes, and toasts used to cover the comet banner.
 ]]
 
 local Players = game:GetService("Players")
@@ -19,6 +23,9 @@ local Toast = require(script.Parent.Parent.UI.Components.Toast)
 
 local MAX_TOASTS = 4
 local LIFETIME_SECONDS = 3.2
+local POP_SECONDS = 0.18
+-- Distance from the bottom of the screen to the newest toast: clears the carry pill and its hint.
+local BOTTOM_OFFSET = 128
 
 local STYLE_COLORS: { [string]: Color3 } = {
 	info = Theme.Color.Blue,
@@ -51,7 +58,13 @@ function NotificationController.show(text: string, style: string, rarity: number
 	order += 1
 	local toast = Toast.new(text, color)
 	toast.LayoutOrder = order
+	local pop = Instance.new("UIScale")
+	pop.Scale = 0.6
+	pop.Parent = toast
 	toast.Parent = holder
+	TweenService:Create(pop, TweenInfo.new(POP_SECONDS, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
 
 	local toasts = {}
 	for _, child in holder:GetChildren() do
@@ -74,7 +87,14 @@ function NotificationController.show(text: string, style: string, rarity: number
 		TweenService:Create(flash, TweenInfo.new(0.9), { BackgroundTransparency = 1 }):Play()
 	end
 	task.delay(LIFETIME_SECONDS, function()
-		toast:Destroy()
+		if toast.Parent == nil then
+			return
+		end
+		local shrink = TweenService:Create(pop, TweenInfo.new(POP_SECONDS), { Scale = 0 })
+		shrink.Completed:Once(function()
+			toast:Destroy()
+		end)
+		shrink:Play()
 	end)
 end
 
@@ -82,14 +102,15 @@ function NotificationController.init(_self: any)
 	scale = Instance.new("UIScale")
 	holder = Create("Frame", {
 		Name = "Toasts",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 190),
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -BOTTOM_OFFSET),
 		Size = UDim2.fromOffset(900, 260),
 		BackgroundTransparency = 1,
 	}, {
 		Create("UIListLayout", {
 			FillDirection = Enum.FillDirection.Vertical,
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			VerticalAlignment = Enum.VerticalAlignment.Bottom,
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			Padding = UDim.new(0, 6),
 		}),
@@ -107,7 +128,7 @@ function NotificationController.init(_self: any)
 		ResetOnSpawn = false,
 		DisplayOrder = Layers.Toasts,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-		-- Full screen so the alarm flash covers everything (toasts sit well below the top bar).
+		-- Full screen so the alarm flash covers everything.
 		ScreenInsets = Enum.ScreenInsets.None,
 	}, { scale :: Instance, flash, holder }) :: ScreenGui
 end
