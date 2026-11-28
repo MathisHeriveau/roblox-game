@@ -6,6 +6,9 @@
 	    other people's consoles) — purely cosmetic, the server enforces every rule. Hiding goes
 	    through PromptFilter, which restores the server value when a prompt must show again
 	    (the client boots before its plot owner replicates);
+	  - shows only the player's own vault billboard ("💰 n · STEP HERE TO COLLECT"): the other
+	    seven pads' labels were clutter for everyone else (local Enabled write, the server never
+	    toggles it);
 	  - shows the base lock status pill with its countdown, pulsing red when the base is open.
 ]]
 
@@ -14,6 +17,7 @@ local Workspace = game:GetService("Workspace")
 
 local Create = require(script.Parent.Parent.UI.Create)
 local Format = require(game:GetService("ReplicatedStorage").Shared.Game.Format)
+local HudLayout = require(script.Parent.Parent.UI.HudLayout)
 local Layers = require(script.Parent.Parent.UI.Layers)
 local PromptFilter = require(script.Parent.Parent.Bases.PromptFilter)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -68,6 +72,11 @@ local function refreshPrompts()
 	local mine = ownPlot()
 	for _, plot in bases:GetChildren() do
 		local isMine = plot == mine
+		local pad = plot:FindFirstChild("CollectPad")
+		local vault = pad and pad:FindFirstChild("VaultGui")
+		if vault and vault:IsA("BillboardGui") then
+			vault.Enabled = isMine
+		end
 		for _, prompt in plot:GetDescendants() do
 			if prompt:IsA("ProximityPrompt") then
 				if PromptFilter.shouldHide(prompt.Name, isMine) then
@@ -118,8 +127,8 @@ function BaseController.init(_self: any)
 	Theme.textOutline(pillText, 2)
 	pill = Create("Frame", {
 		Name = "LockPill",
-		Position = UDim2.fromOffset(18, 172),
-		Size = UDim2.fromOffset(300, 40),
+		Position = HudLayout.lockPosition(),
+		Size = UDim2.fromOffset(300, HudLayout.LOCK_HEIGHT),
 		BackgroundColor3 = Theme.Color.Panel,
 		Visible = false,
 	}, { pillText }) :: Frame

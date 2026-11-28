@@ -1,8 +1,9 @@
 --!strict
 --[[
-	HudController — the always-visible HUD: coins & income, the star level badge & XP, carried
-	shards, the candy SHOP / REBIRTH buttons ("!" when something is affordable) and the zone banner
-	shown when walking into another zone. Hidden behind the title screen until PLAY.
+	HudController — the always-visible HUD: coins & income, the star level badge & XP (top of the
+	left column, UI/HudLayout), carried shards, the candy SHOP / REBIRTH buttons ("!" when
+	something is affordable) and the zone banner shown when walking into another zone. Hidden
+	behind the title screen until PLAY.
 
 	Owns the top-centre column, a vertical stack where other controllers mount their banners
 	(`HudController.mountTop(item, HudController.TopSlot.X)`, from their init()): sky event
@@ -21,6 +22,7 @@ local CarryIndicator = require(script.Parent.Parent.UI.Components.CarryIndicator
 local CoinPill = require(script.Parent.Parent.UI.Components.CoinPill)
 local Create = require(script.Parent.Parent.UI.Create)
 local Economy = require(ReplicatedStorage.Shared.Game.Economy)
+local HudLayout = require(script.Parent.Parent.UI.HudLayout)
 local Layers = require(script.Parent.Parent.UI.Layers)
 local LevelBadge = require(script.Parent.Parent.UI.Components.LevelBadge)
 local PillButton = require(script.Parent.Parent.UI.Components.PillButton)
@@ -144,11 +146,12 @@ function HudController.init(_self: any)
 	rebirthButton = PillButton.new("🌟", "REBIRTH", Theme.Color.Purple, Theme.Color.PurpleDark, Vector2.new(196, 66))
 	rebirthButton.root.LayoutOrder = 2
 
+	-- Left column (UI/HudLayout): out of the top-left corner, where the chat window covered it.
 	local topLeft = Create("Frame", {
 		Name = "TopLeft",
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(18, 18),
-		Size = UDim2.fromOffset(280, 150),
+		Position = HudLayout.coinsPosition(),
+		Size = UDim2.fromOffset(280, HudLayout.COINS_HEIGHT),
 	}, { coinPill.root :: Instance, levelBadge.root }) :: Frame
 
 	local right = Create("Frame", {

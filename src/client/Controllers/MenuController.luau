@@ -1,6 +1,7 @@
 --!strict
 --[[
-	MenuController — the round icon buttons of the style sheet (left side, 3 x 2) and their panels:
+	MenuController — the round icon buttons of the style sheet (left column under the coins, 3 x 2,
+	UI/HudLayout) and their panels:
 
 	  ⚙️ Settings   local toggles (sounds, effects, guide beam)
 	  📊 Stats      lifetime progression from PlayerState
@@ -21,6 +22,7 @@ local Workspace = game:GetService("Workspace")
 local ClientNet = require(ReplicatedStorage.Shared.Net.ClientNet)
 local Create = require(script.Parent.Parent.UI.Create)
 local Format = require(ReplicatedStorage.Shared.Game.Format)
+local HudLayout = require(script.Parent.Parent.UI.HudLayout)
 local Layers = require(script.Parent.Parent.UI.Layers)
 local MenuViews = require(script.Parent.Parent.Menu.MenuViews)
 local Panel = require(script.Parent.Parent.UI.Components.Panel)
@@ -688,9 +690,8 @@ function MenuController.init(_self: any)
 	local rail = Create("Frame", {
 		Name = "Rail",
 		BackgroundTransparency = 1,
-		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 14, 0.5, 30),
-		Size = UDim2.fromOffset(3 * 70 + 2 * 6, 2 * 82 + 6),
+		Position = HudLayout.railPosition(),
+		Size = UDim2.fromOffset(3 * 70 + 2 * 6, HudLayout.RAIL_HEIGHT),
 	}, {
 		Create("UIGridLayout", {
 			CellSize = UDim2.fromOffset(70, 82),

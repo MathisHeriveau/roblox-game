@@ -213,7 +213,9 @@ function BaseBuilder.build(plot: BaseLayout.Plot, parent: Instance): PlotRefs
 		CanCollide = false,
 		CastShadow = false,
 	}, model)
-	local padGui = billboard("VaultGui", UDim2.fromScale(8, 2.4), Vector3.new(0, 3.2, 0), collectPad)
+	-- Sized in studs: readable from the plot entrance without filling the screen when you stand
+	-- in your base (it was 8 x 2.4 studs). Clients only show their own (BaseController).
+	local padGui = billboard("VaultGui", UDim2.fromScale(5, 1.6), Vector3.new(0, 2.6, 0), collectPad)
 	local vaultLabel = label({
 		Name = "Vault",
 		Size = UDim2.fromScale(1, 0.62),
