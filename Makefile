@@ -24,7 +24,7 @@ STUDIO_PLUGINS_DIR := $(HOME)/Documents/Roblox/Plugins
 .DEFAULT_GOAL := help
 .PHONY: help install tools packages studio-plugin dev dev-test build build-test studio studio-test \
         format format-check lint typecheck validate test check sourcemap preview preview-models \
-        studio-sync studio-sync-serve clean
+        studio-sync studio-sync-serve ui-art clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -92,6 +92,9 @@ preview: ## Render the generated island to build/preview/*.png (top-down + isome
 
 preview-models: ## Ray-trace the real Starling and shard models to build/preview/models.png
 	$(LUNE) run tools/preview-models.luau
+
+ui-art: ## Cut the style sheet's UI art (local AI) into assets/ui atlases + UI/ArtSprites.luau (setup: tools/art/setup.sh)
+	"$$HOME/.cache/comet-raiders-art/venv/bin/python" tools/art/extract-ui-art.py
 
 studio-sync: ## Bundle src/ + tests/ for Studio MCP sessions (execute_luau build/studio-sync/sync.luau)
 	python3 tools/studio-sync.py
