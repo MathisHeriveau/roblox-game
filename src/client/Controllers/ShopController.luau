@@ -4,8 +4,9 @@
 
 	Displays prices and effects computed with Shared/Game/Economy from the server-sent state, and
 	sends purchase *requests*; the server re-checks everything. Opens with the HUD buttons, the
-	"+" on the coin pill, or the B key. Purchase results show on the shop's own status line: toasts
-	are drawn under the shop (UI/Layers).
+	"+" on the coin pill, or the B key; B, the X, a click outside, gamepad B or Escape close it.
+	Purchase results show on the shop's own status line: toasts are drawn under the shop
+	(UI/Layers).
 ]]
 
 local Players = game:GetService("Players")
@@ -385,10 +386,9 @@ function ShopController.start(_self: any)
 		if processed or TitleController.isShowing() then
 			return
 		end
+		-- Escape is reserved by Roblox: InputController closes modals when the Roblox menu opens.
 		if input.KeyCode == Enum.KeyCode.B then
 			ShopController.toggle()
-		elseif input.KeyCode == Enum.KeyCode.Escape and gui.Enabled then
-			ShopController.close()
 		end
 	end)
 end

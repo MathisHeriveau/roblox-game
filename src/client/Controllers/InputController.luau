@@ -3,19 +3,26 @@
 	InputController — player actions: BUMP (F key, gamepad X, or the on-screen touch button) and
 	applying knockback when this player gets bumped (the client owns its character's physics).
 	The client only *asks* to bump; the server decides who (if anyone) is hit.
+
+	Also closes the open modal (shop or menu panel) on gamepad B, and when the Roblox menu opens:
+	Roblox reserves Escape for that menu (games only see it as an already-processed key), so
+	pressing Escape opens the Roblox menu and the modal is gone once the player comes back.
 ]]
 
 local ContextActionService = game:GetService("ContextActionService")
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ClientNet = require(ReplicatedStorage.Shared.Net.ClientNet)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
+local Modal = require(script.Parent.Parent.UI.Modal)
 local Sfx = require(script.Parent.Parent.Effects.Sfx)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local Vfx = require(script.Parent.Parent.Effects.Vfx)
 
 local BUMP_ACTION = "CometRaidersBump"
+local CLOSE_ACTION = "CometRaidersCloseModal"
 -- Client-side courtesy throttle; the server enforces the real cooldown.
 local LOCAL_THROTTLE_SECONDS = 0.35
 
@@ -79,6 +86,15 @@ function InputController.start(_self: any)
 	ContextActionService:SetTitle(BUMP_ACTION, "BUMP")
 	ContextActionService:SetPosition(BUMP_ACTION, UDim2.new(1, -200, 1, -150))
 	ClientNet.onEvent("Knockback", onKnockback)
+
+	GuiService.MenuOpened:Connect(Modal.closeAll)
+	ContextActionService:BindAction(CLOSE_ACTION, function(_name: string, inputState: Enum.UserInputState)
+		if inputState ~= Enum.UserInputState.Begin or Modal.current() == nil then
+			return Enum.ContextActionResult.Pass
+		end
+		Modal.closeAll()
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.ButtonB)
 end
 
 return InputController
