@@ -2,6 +2,9 @@
 --[[
 	Sfx — sound effects using sounds that ship with every Roblox client (rbxasset://), so the game
 	needs no uploaded audio. Positional sounds fade with distance.
+
+	Only eleven such sounds exist (content/sounds), so cues are told apart by pitch: `play` takes
+	an optional PlaybackSpeed, and `chime` plays a quick rising arpeggio (level up, rewards).
 ]]
 
 local Debris = game:GetService("Debris")
@@ -23,16 +26,27 @@ local function muted(): boolean
 	return not Settings.get("sounds")
 end
 
-function Sfx.play(soundId: string, volume: number?)
+function Sfx.play(soundId: string, volume: number?, pitch: number?)
 	if muted() then
 		return
 	end
 	local sound = Instance.new("Sound")
 	sound.SoundId = soundId
 	sound.Volume = volume or 0.5
+	sound.PlaybackSpeed = pitch or 1
 	sound.Parent = SoundService
 	sound:Play()
 	Debris:AddItem(sound, 6)
+end
+
+-- Rising "ding-ding-ding" (major arpeggio) on the click sound.
+local CHIME_PITCHES = { 1, 1.26, 1.5, 2 }
+local CHIME_STEP_SECONDS = 0.08
+
+function Sfx.chime(volume: number?)
+	for index, pitch in CHIME_PITCHES do
+		task.delay((index - 1) * CHIME_STEP_SECONDS, Sfx.play, Sfx.CLICK, volume or 0.6, pitch)
+	end
 end
 
 function Sfx.playAt(soundId: string, position: Vector3, volume: number?)

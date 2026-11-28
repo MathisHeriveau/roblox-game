@@ -3,7 +3,8 @@
 	HudController — the always-visible HUD: coins & income, the star level badge & XP (top of the
 	left column, UI/HudLayout), carried shards, the candy SHOP / REBIRTH buttons ("!" when
 	something is affordable) and the zone banner shown when walking into another zone. Hidden
-	behind the title screen until PLAY.
+	behind the title screen until PLAY. Level ups (toast + chime) and coin gains pop their widget
+	(Hud/HudFeedback decides).
 
 	Owns the top-centre column, a vertical stack where other controllers mount their banners
 	(`HudController.mountTop(item, HudController.TopSlot.X)`, from their init()): sky event
@@ -22,11 +23,14 @@ local CarryIndicator = require(script.Parent.Parent.UI.Components.CarryIndicator
 local CoinPill = require(script.Parent.Parent.UI.Components.CoinPill)
 local Create = require(script.Parent.Parent.UI.Create)
 local Economy = require(ReplicatedStorage.Shared.Game.Economy)
+local HudFeedback = require(script.Parent.Parent.Hud.HudFeedback)
 local HudLayout = require(script.Parent.Parent.UI.HudLayout)
 local Layers = require(script.Parent.Parent.UI.Layers)
 local LevelBadge = require(script.Parent.Parent.UI.Components.LevelBadge)
+local NotificationController = require(script.Parent.NotificationController)
 local PillButton = require(script.Parent.Parent.UI.Components.PillButton)
 local PlayerStateTypes = require(ReplicatedStorage.Shared.Types.PlayerState)
+local Sfx = require(script.Parent.Parent.Effects.Sfx)
 local ShopController = require(script.Parent.ShopController)
 local StateController = require(script.Parent.StateController)
 local Theme = require(script.Parent.Parent.UI.Theme)
@@ -63,6 +67,31 @@ local zoneBanner: ZoneBanner.ZoneBanner
 local zoneFade: NumberValue
 local zoneTween: Tween? = nil
 local zoneToken = 0
+-- Celebrations (HudFeedback): the coin pill and the level badge pop.
+local previous: HudFeedback.Snapshot? = nil
+local coinPop: UIScale
+local levelPop: UIScale
+
+local function pop(target: UIScale, peak: number)
+	target.Scale = peak
+	TweenService:Create(target, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+		:Play()
+end
+
+local function celebrate(state: PlayerState)
+	local current = { level = state.level, coins = state.coins }
+	local feedback = HudFeedback.compare(previous, current)
+	previous = current
+	if feedback.coinsGained > 0 then
+		pop(coinPop, 1.12)
+	end
+	local level = feedback.levelUp
+	if level then
+		pop(levelPop, 1.35)
+		Sfx.chime(0.55)
+		NotificationController.show(`⭐ LEVEL UP! You are level {level}!`, "success")
+	end
+end
 
 local function render(state: PlayerState)
 	coinPill.setCoins(state.coins)
@@ -85,6 +114,7 @@ local function render(state: PlayerState)
 	end
 	shopButton.setBadge(affordable)
 	rebirthButton.setBadge(state.coins >= state.rebirthCost)
+	celebrate(state)
 end
 
 local function showZone(tier: number)
@@ -139,6 +169,12 @@ function HudController.init(_self: any)
 	coinPill = CoinPill.new()
 	levelBadge = LevelBadge.new()
 	levelBadge.root.Position = UDim2.fromOffset(0, 96)
+	coinPop = Instance.new("UIScale")
+	coinPop.Name = "Pop"
+	coinPop.Parent = coinPill.root
+	levelPop = Instance.new("UIScale")
+	levelPop.Name = "Pop"
+	levelPop.Parent = levelBadge.root
 	carry = CarryIndicator.new()
 	carry.root.Position = UDim2.new(0.5, 0, 1, -16)
 	shopButton = PillButton.new("🛒", "SHOP", Theme.Color.Blue, Theme.Color.BlueDark, Vector2.new(196, 66))
