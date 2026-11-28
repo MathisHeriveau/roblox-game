@@ -150,6 +150,12 @@ local GameConfig = {
 		AtmosphereColor = Color3.fromRGB(199, 170, 255),
 		AtmosphereDecay = Color3.fromRGB(106, 80, 190),
 		StarCount = 4000,
+		-- Sways the animated grass (Terrain.Decoration, set in the project files).
+		Wind = Vector3.new(6, 0, 3),
+		-- Soft pink-white clouds (Terrain.Clouds).
+		CloudCover = 0.5,
+		CloudDensity = 0.45,
+		CloudColor = Color3.fromRGB(255, 236, 255),
 	}),
 }
 

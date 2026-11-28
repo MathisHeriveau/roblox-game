@@ -34,6 +34,17 @@ return function()
 			expect(Workspace.Gravity).to.be.near(GameConfig.Map.Gravity, 1e-3)
 		end)
 
+		it("sets the wind for the animated grass and adds clouds", function()
+			WorldService.init(WorldService)
+			expect(Workspace.GlobalWind.X).to.be.near(GameConfig.World.Wind.X, 1e-3)
+			local terrain = Workspace:FindFirstChildOfClass("Terrain")
+			if terrain then
+				local clouds = terrain:FindFirstChildOfClass("Clouds") :: Clouds
+				assert(clouds, "Clouds expected under Terrain")
+				expect(clouds.Cover).to.be.near(GameConfig.World.CloudCover, 1e-3)
+			end
+		end)
+
 		it("respawns quickly after a fall or a lava death (playtest: 5 s staring at the void)", function()
 			WorldService.init(WorldService)
 			expect(Players.RespawnTime).to.be.near(GameConfig.Hazards.RespawnSeconds, 1e-4)

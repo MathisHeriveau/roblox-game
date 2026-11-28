@@ -97,7 +97,7 @@ The island is built during `init()` so terrain, plots and spawns exist before an
 | `Systems/ServerNet` | Creates remotes; inbound pipeline: direction → per-player rate limit → `Guard.tuple` → handler. |
 | `Systems/Notifier` | Toasts to one or all players (`Notify`). |
 | `Systems/Map/MapLayout` | Pure, seeded island: tiles (hub, 3 mainland zones, sky islands), lava pools, props, landmarks, jump pads with precomputed `velocity` + `flightTime`, shard landing candidates. |
-| `Systems/Map/MapBuilder` | Layout → smooth Terrain (through an injected `TerrainWriter`) + Parts (props, landmarks, pads, bounds, plaza spawn). Compensates the engine's terrain surface offset (below). |
+| `Systems/Map/MapBuilder` | Layout → smooth Terrain (through an injected `TerrainWriter`) + Parts (props, landmarks, pads, bounds, plaza spawn). `terrainPlan` (pure) mixes surface materials per 4×4-stud cell with noise over an earth/sandstone band; lava material only on lava tiles. `decorPlan` (pure) scatters non-colliding flowers, bushes and pebbles. Compensates the engine's terrain surface offset (below). Animated grass (`Terrain.Decoration`, not scriptable) is set in the project files. |
 | `Systems/Base/BaseLayout` | Pure plot geometry: ring around the hub, entrance facing the centre, 12 pedestals, collect pad, spawn clear of the pad. |
 | `Systems/Base/BaseBuilder` | Plot Instances (floor, fence, pedestals with Steal prompts, collect pad, sign, lock console, shield dome, SpawnLocation). |
 | `Systems/Base/CollectPadRules` | Pure: the vault is banked once per visit to the pad. |

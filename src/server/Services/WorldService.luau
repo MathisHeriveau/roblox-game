@@ -85,6 +85,16 @@ function WorldService.init(_self: any)
 	grading.Brightness = 0.02
 	grading.TintColor = Color3.fromRGB(255, 246, 255)
 
+	-- Wind for the animated grass, and soft clouds above the island.
+	Workspace.GlobalWind = world.Wind
+	local terrain = Workspace:FindFirstChildOfClass("Terrain")
+	if terrain then
+		local clouds = findOrCreate("Clouds", terrain) :: Clouds
+		clouds.Cover = world.CloudCover
+		clouds.Density = world.CloudDensity
+		clouds.Color = world.CloudColor
+	end
+
 	-- Jump pad trajectories are computed for this gravity (GameConfig.Map.Gravity).
 	Workspace.Gravity = GameConfig.Map.Gravity
 	Players.RespawnTime = GameConfig.Hazards.RespawnSeconds
