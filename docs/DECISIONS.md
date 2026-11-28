@@ -114,3 +114,17 @@ Instance construction from `Rarities` with nothing secret in it. Index copies ar
 `AmbientController` does not animate them.
 **Consequences.** One model definition for the world, the Index and `make preview-models`. The
 builder is public code from now on: it must stay free of server-only logic.
+
+## ADR-011 — Local art tooling: Blender, rembg, Real-ESRGAN
+
+**Context.** The owner wants the style sheet's art in the game and real 3D models instead of
+primitive Parts, with a 0 € budget and without designing blind.
+**Decision.** Art is produced by scripts with free, local tools installed outside the repo:
+Blender (Homebrew cask, `tools/models/*.py`, run headless, renders a preview to look at) for
+meshes; rembg (isnet-anime) and Real-ESRGAN ncnn (x4 anime) for cutting the style sheet's UI art
+(`tools/art/`, installed by `tools/art/setup.sh` into `~/.cache/comet-raiders-art`). Outputs
+(`assets/ui/*.png`, `assets/models/*.fbx`) are committed; the tools are not dependencies of the
+game or of `make check`.
+**Consequences.** Re-running a script regenerates its assets deterministically. Roblox only shows
+uploaded images and meshes, so the owner imports them in Studio (Asset Manager / Import 3D); the
+code keeps its Part/text fallbacks until the ids or imported models are wired in.
