@@ -3,14 +3,16 @@
 	TitleController — the title screen shown on join: the COMET RAIDERS logo over a slow camera
 	orbit of the island, and a big PLAY button (Enter / Space / gamepad A also work).
 
-	While it shows, the character controls are disabled and the HUD/menu ScreenGuis registered
-	with `TitleController.hideWhileShowing(gui)` (from their init()) stay hidden. PLAY gives the
-	camera back to the character and reveals them. Must boot before any controller that registers.
+	While it shows, the character controls and the Roblox chat window are disabled and the
+	HUD/menu ScreenGuis registered with `TitleController.hideWhileShowing(gui)` (from their init())
+	stay hidden. PLAY gives the camera back to the character, behind it, and reveals them. Must
+	boot before any controller that registers.
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
@@ -29,6 +31,8 @@ local ORBIT_RADIUS = Zones.outerRadius(3) * Zones.TILE_SIZE * 1.05
 local ORBIT_HEIGHT = ORBIT_RADIUS * 0.5
 local FOCUS = Vector3.new(0, 18, 0)
 local NIGHT = Color3.fromRGB(26, 27, 143)
+-- Studs between the character and the camera when PLAY hands the camera back.
+local PLAY_CAMERA_DISTANCE = 14
 
 local TitleController = {
 	name = "TitleController",
@@ -52,6 +56,22 @@ function TitleController.hideWhileShowing(target: ScreenGui)
 		target.Enabled = false
 		table.insert(hidden, target)
 	end
+end
+
+-- SetCoreGuiEnabled errors while the core scripts are still loading: retry for a few seconds.
+local function setChatEnabled(enabled: boolean)
+	task.spawn(function()
+		for _ = 1, 20 do
+			-- A late "hide" retry must never win over PLAY.
+			if not enabled and not showing then
+				return
+			end
+			if pcall(StarterGui.SetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.Chat, enabled) then
+				return
+			end
+			task.wait(0.25)
+		end
+	end)
 end
 
 local function playerControls(): any
@@ -91,8 +111,19 @@ local function play()
 		camera.CameraType = Enum.CameraType.Custom
 		local character = Players.LocalPlayer.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if humanoid then
 			camera.CameraSubject = humanoid
+		end
+		-- Start behind the character, looking where it faces (its base and the meadow beyond),
+		-- instead of keeping whatever direction the title orbit had reached.
+		if root and root:IsA("BasePart") then
+			local look = root.CFrame.LookVector * Vector3.new(1, 0, 1)
+			if look.Magnitude > 0.01 then
+				look = look.Unit
+				local focus = root.Position + Vector3.new(0, 2, 0)
+				camera.CFrame = CFrame.lookAt(focus - look * PLAY_CAMERA_DISTANCE + Vector3.new(0, 5, 0), focus)
+			end
 		end
 	end
 	if controls then
@@ -100,6 +131,7 @@ local function play()
 			controls:Enable()
 		end)
 	end
+	setChatEnabled(true)
 	for _, target in hidden do
 		target.Enabled = true
 	end
@@ -228,6 +260,7 @@ function TitleController.start(_self: any)
 	end)
 
 	orbit()
+	setChatEnabled(false)
 	controls = playerControls()
 	if controls then
 		-- ControlModule:Disable() calls Player:Move, which warns until the character AND its Humanoid
