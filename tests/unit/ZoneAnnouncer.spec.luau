@@ -57,6 +57,22 @@ return function()
 			expect(string.find(ZoneAnnouncer.describe(3, nil).subtitle, "Locked", 1, true)).to.equal(nil)
 		end)
 
+		-- Playtest 2026-11-28: walking into a 🔒 shard did nothing at all, with no hint why.
+		it("tells a player next to a locked shard which zone to buy and for how much", function()
+			local desert = ZoneAnnouncer.lockedShardHint(2, 1)
+			expect(string.find(desert, "Crystal Desert shards: unlock the zone in the SHOP", 1, true) ~= nil).to.equal(
+				true
+			)
+			expect(string.find(desert, "400", 1, true) ~= nil).to.equal(true)
+
+			local lavaTooFar = ZoneAnnouncer.lockedShardHint(3, 1)
+			expect(string.find(lavaTooFar, "unlock Crystal Desert first", 1, true) ~= nil).to.equal(true)
+
+			local lavaNext = ZoneAnnouncer.lockedShardHint(3, 2)
+			expect(string.find(lavaNext, "Lava Fields shards: unlock the zone", 1, true) ~= nil).to.equal(true)
+			expect(string.find(lavaNext, "8K", 1, true) ~= nil).to.equal(true)
+		end)
+
 		it("keeps texts short enough for the compact banner", function()
 			for tier = 0, 4 do
 				local text = ZoneAnnouncer.describe(tier, 0)

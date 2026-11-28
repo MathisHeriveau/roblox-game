@@ -11,10 +11,12 @@
 	  announcer:observe(tier?) -> tier to announce, or nil   (tier from Zones.tierAt; nil = off-world)
 	  announcer:reset()                                      new character: next zone is silent
 	  ZoneAnnouncer.describe(tier, unlockedTier?) -> { title, subtitle, color }
+	  ZoneAnnouncer.lockedShardHint(tier, unlockedTier) -> string   why a 🔒 shard can't be grabbed
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Format = require(ReplicatedStorage.Shared.Game.Format)
 local Theme = require(script.Parent.Parent.UI.Theme)
 local Zones = require(ReplicatedStorage.Shared.Config.Zones)
 
@@ -69,6 +71,18 @@ function ZoneAnnouncer.describe(tier: number, unlockedTier: number?): Text
 		subtitle = if locked then "🔒 Locked: unlock it in the shop" else `Shards drop here · zone {tier}`,
 		color = zone.color,
 	}
+end
+
+-- Toast for a player standing next to shards of a zone they have not unlocked: which zone to buy
+-- next, and its price, so the 🔒 badge leads somewhere.
+function ZoneAnnouncer.lockedShardHint(tier: number, unlockedTier: number): string
+	local zone = Zones.get(tier)
+	local nextTier = math.clamp(unlockedTier + 1, 1, Zones.COUNT)
+	if tier <= nextTier then
+		return `🔒 {zone.name} shards: unlock the zone in the SHOP (💰{Format.compact(zone.unlockCost)})`
+	end
+	local next = Zones.get(nextTier)
+	return `🔒 {zone.name} shards: unlock {next.name} first (SHOP, 💰{Format.compact(next.unlockCost)})`
 end
 
 return ZoneAnnouncer
